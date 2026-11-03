@@ -3482,75 +3482,6 @@ func TestProcessMessage_ClearCommandClearsRoutedAgentSession(t *testing.T) {
 	}
 }
 
-func TestProcessMessage_MCPCommandsHandledWithoutLLMCall(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "agent-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	deferred := true
-	cfg := &config.Config{
-		Agents: config.AgentsConfig{
-			Defaults: config.AgentDefaults{
-				Workspace:         tmpDir,
-				ModelName:         "test-model",
-				MaxTokens:         4096,
-				MaxToolIterations: 10,
-			},
-		},
-		Session: config.SessionConfig{
-			Dimensions: []string{"chat"},
-		},
-		Tools: config.ToolsConfig{
-			MCP: config.MCPConfig{
-				ToolConfig: config.ToolConfig{Enabled: true},
-				Discovery:  config.ToolDiscoveryConfig{Enabled: true},
-				Servers: map[string]config.MCPServerConfig{
-					"github": {
-						Enabled:  true,
-						Deferred: &deferred,
-					},
-				},
-			},
-		},
-	}
-
-	msgBus := bus.NewMessageBus()
-	provider := &countingMockProvider{response: "LLM reply"}
-	al := NewAgentLoop(cfg, msgBus, provider)
-	helper := testHelper{al: al}
-
-	baseContext := bus.InboundContext{
-		Channel:  "whatsapp",
-		ChatID:   "chat1",
-		ChatType: "direct",
-		SenderID: "user1",
-	}
-
-	listResp := helper.executeAndGetResponse(t, context.Background(), bus.InboundMessage{
-		Context: baseContext,
-		Content: "/list mcp",
-	})
-	if !strings.Contains(listResp, "- `github`") || !strings.Contains(listResp, "Deferred: yes") {
-		t.Fatalf("unexpected /list mcp reply: %q", listResp)
-	}
-	if provider.calls != 0 {
-		t.Fatalf("LLM should not be called for /list mcp, calls=%d", provider.calls)
-	}
-
-	showResp := helper.executeAndGetResponse(t, context.Background(), bus.InboundMessage{
-		Context: baseContext,
-		Content: "/show mcp github",
-	})
-	if showResp != "MCP server 'github' is configured but not connected" {
-		t.Fatalf("unexpected /show mcp reply: %q", showResp)
-	}
-	if provider.calls != 0 {
-		t.Fatalf("LLM should not be called for /show mcp, calls=%d", provider.calls)
-	}
-}
-
 func TestProcessMessage_SwitchModelShowModelConsistency(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "agent-test-*")
 	if err != nil {
@@ -5517,62 +5448,6 @@ func TestAgentLoop_ToolLimitUsesDedicatedFallback(t *testing.T) {
 	}
 }
 
-// TestProcessDirectWithChannel_TriggersMCPInitialization verifies that
-// ProcessDirectWithChannel triggers MCP initialization when MCP is enabled.
-// Note: Manager is only initialized when at least one MCP server is configured
-// and successfully connected.
-func TestProcessDirectWithChannel_TriggersMCPInitialization(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "agent-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Test with MCP enabled but no servers - should not initialize manager
-	cfg := &config.Config{
-		Agents: config.AgentsConfig{
-			Defaults: config.AgentDefaults{
-				Workspace:         tmpDir,
-				ModelName:         "test-model",
-				MaxTokens:         4096,
-				MaxToolIterations: 10,
-			},
-		},
-		Tools: config.ToolsConfig{
-			MCP: config.MCPConfig{
-				ToolConfig: config.ToolConfig{
-					Enabled: true,
-				},
-				// No servers configured - manager should not be initialized
-			},
-		},
-	}
-
-	msgBus := bus.NewMessageBus()
-	provider := &mockProvider{}
-	al := NewAgentLoop(cfg, msgBus, provider)
-	defer al.Close()
-
-	if al.mcp.hasManager() {
-		t.Fatal("expected MCP manager to be nil before first direct processing")
-	}
-
-	_, err = al.ProcessDirectWithChannel(
-		context.Background(),
-		"hello",
-		"session-1",
-		"cli",
-		"direct",
-	)
-	if err != nil {
-		t.Fatalf("ProcessDirectWithChannel failed: %v", err)
-	}
-
-	// Manager should not be initialized when no servers are configured
-	if al.mcp.hasManager() {
-		t.Fatal("expected MCP manager to be nil when no servers are configured")
-	}
-}
 
 func TestTargetReasoningChannelID_AllChannels(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "agent-test-*")

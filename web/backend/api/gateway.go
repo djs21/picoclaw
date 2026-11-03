@@ -488,18 +488,6 @@ func computeConfigSignature(cfg *config.Config) string {
 	if cfg.Tools.SPI.Enabled {
 		toolSignatures = append(toolSignatures, "spi")
 	}
-	if cfg.Tools.MCP.Enabled {
-		toolSignatures = append(toolSignatures, "mcp")
-	}
-	if cfg.Tools.MCP.Discovery.Enabled {
-		toolSignatures = append(toolSignatures, "mcp_discovery")
-	}
-	if cfg.Tools.MCP.Discovery.UseRegex {
-		toolSignatures = append(toolSignatures, "mcp_discovery_regex")
-	}
-	if cfg.Tools.MCP.Discovery.UseBM25 {
-		toolSignatures = append(toolSignatures, "mcp_discovery_bm25")
-	}
 	if len(toolSignatures) > 0 {
 		parts = append(parts, "tools:"+strings.Join(toolSignatures, ","))
 	}

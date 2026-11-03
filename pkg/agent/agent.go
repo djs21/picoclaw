@@ -54,7 +54,6 @@ type AgentLoop struct {
 	mediaStore     media.MediaStore
 	transcriber    asr.Transcriber
 	cmdRegistry    *commands.Registry
-	mcp            mcpRuntime
 	evolution      *evolutionBridge
 	hookRuntime    hookRuntime
 	steering       *steeringQueue
@@ -146,9 +145,6 @@ func (al *AgentLoop) Run(ctx context.Context) error {
 	al.running.Store(true)
 
 	if err := al.ensureHooksInitialized(ctx); err != nil {
-		return err
-	}
-	if err := al.ensureMCPInitialized(ctx); err != nil {
 		return err
 	}
 
@@ -324,16 +320,6 @@ func (al *AgentLoop) Stop() {
 
 // Close releases resources held by agent session stores. Call after Stop.
 func (al *AgentLoop) Close() {
-	mcpManager := al.mcp.takeManager()
-
-	if mcpManager != nil {
-		if err := mcpManager.Close(); err != nil {
-			logger.ErrorCF("agent", "Failed to close MCP manager",
-				map[string]any{
-					"error": err.Error(),
-				})
-		}
-	}
 	evolution := al.currentEvolutionBridge()
 	if evolution != nil {
 		if err := evolution.Close(); err != nil {
@@ -450,28 +436,17 @@ func (al *AgentLoop) ReloadProviderAndConfig(
 	al.mu.Unlock()
 	al.refreshRuntimeEventLogger(cfg)
 
-	oldMCPManager := al.mcp.reset()
 	al.hookRuntime.reset(al)
 	configureHookManagerFromConfig(al.hooks, cfg)
 	if err := al.ensureHooksInitialized(ctx); err != nil {
 		logger.WarnCF("agent", "Configured hooks failed to reinitialize after reload",
 			map[string]any{"error": err.Error()})
 	}
-	if oldMCPManager != nil {
-		if err := oldMCPManager.Close(); err != nil {
-			logger.WarnCF("agent", "Failed to close previous MCP manager during reload",
-				map[string]any{"error": err.Error()})
-		}
-	}
 	if oldEvolution != nil {
 		if err := oldEvolution.Close(); err != nil {
 			logger.WarnCF("agent", "Failed to close previous evolution bridge during reload",
 				map[string]any{"error": err.Error()})
 		}
-	}
-	if err := al.ensureMCPInitialized(ctx); err != nil {
-		logger.WarnCF("agent", "MCP failed to reinitialize after reload",
-			map[string]any{"error": err.Error()})
 	}
 
 	// Close old provider after releasing the lock

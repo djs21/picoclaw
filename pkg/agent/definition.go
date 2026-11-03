@@ -34,7 +34,6 @@ type AgentFrontmatter struct {
 	Model       string         `json:"model,omitempty"`
 	MaxTurns    *int           `json:"maxTurns,omitempty"`
 	Skills      []string       `json:"skills,omitempty"`
-	MCPServers  []string       `json:"mcpServers,omitempty"`
 	Fields      map[string]any `json:"-"`
 }
 
@@ -180,7 +179,6 @@ func parseAgentFrontmatter(path, frontmatter string) (AgentFrontmatter, error) {
 		Model       string   `yaml:"model"`
 		MaxTurns    *int     `yaml:"maxTurns"`
 		Skills      []string `yaml:"skills"`
-		MCPServers  []string `yaml:"mcpServers"`
 	}
 	if err := yaml.Unmarshal([]byte(frontmatter), &typed); err != nil {
 		logger.WarnCF("agent", "Failed to decode AGENT.md frontmatter fields", map[string]any{
@@ -197,7 +195,6 @@ func parseAgentFrontmatter(path, frontmatter string) (AgentFrontmatter, error) {
 		Model:       strings.TrimSpace(typed.Model),
 		MaxTurns:    typed.MaxTurns,
 		Skills:      append([]string(nil), typed.Skills...),
-		MCPServers:  append([]string(nil), typed.MCPServers...),
 		Fields:      rawFields,
 	}, nil
 }

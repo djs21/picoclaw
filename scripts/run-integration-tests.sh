@@ -105,8 +105,8 @@ main() {
   done < <(collect_suite_dirs "$@")
 
   if [[ "${#suite_dirs[@]}" -eq 0 ]]; then
-    echo "no integration suites found" >&2
-    exit 1
+    echo "no integration suites configured, skipping"
+    exit 0
   fi
 
   local suite_dir

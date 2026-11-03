@@ -872,14 +872,6 @@ func (c *ModelConfig) SetAPIKey(value string) {
 	}
 }
 
-type ToolDiscoveryConfig struct {
-	Enabled          bool `json:"enabled"            env:"PICOCLAW_TOOLS_DISCOVERY_ENABLED"`
-	TTL              int  `json:"ttl"                env:"PICOCLAW_TOOLS_DISCOVERY_TTL"`
-	MaxSearchResults int  `json:"max_search_results" env:"PICOCLAW_MAX_SEARCH_RESULTS"`
-	UseBM25          bool `json:"use_bm25"           env:"PICOCLAW_TOOLS_DISCOVERY_USE_BM25"`
-	UseRegex         bool `json:"use_regex"          env:"PICOCLAW_TOOLS_DISCOVERY_USE_REGEX"`
-}
-
 type ToolConfig struct {
 	Enabled bool `json:"enabled" yaml:"-" env:"ENABLED"`
 }
@@ -1122,7 +1114,6 @@ type ToolsConfig struct {
 	Exec            ExecConfig         `json:"exec"              yaml:"-"`
 	Skills          SkillsToolsConfig  `json:"skills"            yaml:"skills,omitempty"`
 	MediaCleanup    MediaCleanupConfig `json:"media_cleanup"     yaml:"-"`
-	MCP             MCPConfig          `json:"mcp"               yaml:"-"`
 	AppendFile      ToolConfig         `json:"append_file"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_APPEND_FILE_"`
 	EditFile        ToolConfig         `json:"edit_file"         yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_EDIT_FILE_"`
 	FindSkills      ToolConfig         `json:"find_skills"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_FIND_SKILLS_"`
@@ -1241,53 +1232,6 @@ func (c *SkillRegistryConfig) DecodeParam(target any) error {
 		return err
 	}
 	return json.Unmarshal(data, target)
-}
-
-// MCPServerConfig defines configuration for a single MCP server
-type MCPServerConfig struct {
-	// Enabled indicates whether this MCP server is active
-	Enabled bool `json:"enabled"`
-	// Deferred controls whether this server's tools are registered as hidden (deferred/discovery mode).
-	// When nil, the global Discovery.Enabled setting applies.
-	// When explicitly set to true or false, it overrides the global setting for this server only.
-	Deferred *bool `json:"deferred,omitempty"`
-	// Command is the executable to run (e.g., "npx", "python", "/path/to/server")
-	Command string `json:"command"`
-	// Args are the arguments to pass to the command
-	Args []string `json:"args,omitempty"`
-	// Env are environment variables to set for the server process (stdio only)
-	Env map[string]string `json:"env,omitempty"`
-	// EnvFile is the path to a file containing environment variables (stdio only)
-	EnvFile string `json:"env_file,omitempty"`
-	// Type is "stdio", "sse", "http", or "streamable-http".
-	// "http" and "streamable-http" both select streamable HTTP request-response
-	// mode, while "sse" keeps the standalone SSE listener enabled for
-	// server-initiated notifications. Defaults: stdio if command is set, sse if
-	// url is set.
-	Type string `json:"type,omitempty"`
-	// URL is used for SSE/HTTP transport
-	URL string `json:"url,omitempty"`
-	// Headers are HTTP headers to send with requests (sse/http only)
-	Headers map[string]string `json:"headers,omitempty"`
-}
-
-// MCPConfig defines configuration for all MCP servers
-type MCPConfig struct {
-	ToolConfig `                    envPrefix:"PICOCLAW_TOOLS_MCP_"`
-	Discovery  ToolDiscoveryConfig `                                json:"discovery"`
-	// MaxInlineTextChars controls how much MCP text stays inline before it is saved as an artifact.
-	MaxInlineTextChars int `json:"max_inline_text_chars,omitempty" env:"PICOCLAW_TOOLS_MCP_MAX_INLINE_TEXT_CHARS"`
-	// Servers is a map of server name to server configuration
-	Servers map[string]MCPServerConfig `json:"servers,omitempty"`
-}
-
-const DefaultMCPMaxInlineTextChars = 16 * 1024
-
-func (c *MCPConfig) GetMaxInlineTextChars() int {
-	if c.MaxInlineTextChars > 0 {
-		return c.MaxInlineTextChars
-	}
-	return DefaultMCPMaxInlineTextChars
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -1907,8 +1851,6 @@ func (t *ToolsConfig) IsToolEnabled(name string) bool {
 		return t.SendTTS.Enabled
 	case "write_file":
 		return t.WriteFile.Enabled
-	case "mcp":
-		return t.MCP.Enabled
 	default:
 		return true
 	}

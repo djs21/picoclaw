@@ -32,7 +32,7 @@ type Source struct {
 // Scope identifies the runtime ownership of an event.
 //
 // Scope is intentionally limited to agent, session, turn, channel, chat,
-// message, and sender identity. Tool, provider, model, and MCP details belong
+// message, and sender identity. Tool, provider, and model details belong
 // in Source, Payload, or Attrs.
 type Scope struct {
 	RuntimeID string `json:"runtime_id,omitempty"`

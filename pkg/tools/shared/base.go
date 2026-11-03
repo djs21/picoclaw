@@ -17,7 +17,6 @@ type Tool interface {
 const (
 	ToolPromptLayerCapability = "capability"
 	ToolPromptSlotTooling     = "tooling"
-	ToolPromptSlotMCP         = "mcp"
 	ToolPromptSourceRegistry  = "tool_registry:native"
 	ToolPromptSourceDiscovery = "tool_registry:discovery"
 )

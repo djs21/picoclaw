@@ -132,7 +132,7 @@ func TestToolRegistry_AllowlistFiltersRegistrations(t *testing.T) {
 
 func TestToolRegistry_AllowlistStillAllowsDiscoveryTools(t *testing.T) {
 	r := NewToolRegistry()
-	r.SetAllowlist([]string{"mcp_github_search"})
+	r.SetAllowlist([]string{"github_search"})
 
 	r.Register(newMockTool(BM25SearchToolName, "discover hidden tools"))
 	r.Register(newMockTool(RegexSearchToolName, "discover hidden tools via regex"))
@@ -460,14 +460,14 @@ func TestToolRegistry_ToProviderDefsAttachesPromptMetadata(t *testing.T) {
 	r.Register(newMockTool("native", "native tool"))
 	r.Register(&mockPromptMetadataTool{
 		mockRegistryTool: mockRegistryTool{
-			name:   "mcp_demo",
-			desc:   "mcp tool",
+			name:   "custom_demo",
+			desc:   "custom tool",
 			params: map[string]any{"type": "object"},
 		},
 		metadata: PromptMetadata{
 			Layer:  ToolPromptLayerCapability,
-			Slot:   ToolPromptSlotMCP,
-			Source: "mcp:demo",
+			Slot:   "custom_slot",
+			Source: "custom:demo",
 		},
 	})
 
@@ -488,11 +488,11 @@ func TestToolRegistry_ToProviderDefsAttachesPromptMetadata(t *testing.T) {
 		t.Fatalf("native prompt metadata = %#v, want default tooling source", native)
 	}
 
-	mcp := byName["mcp_demo"]
-	if mcp.PromptLayer != ToolPromptLayerCapability ||
-		mcp.PromptSlot != ToolPromptSlotMCP ||
-		mcp.PromptSource != "mcp:demo" {
-		t.Fatalf("mcp prompt metadata = %#v, want mcp source", mcp)
+	custom := byName["custom_demo"]
+	if custom.PromptLayer != ToolPromptLayerCapability ||
+		custom.PromptSlot != "custom_slot" ||
+		custom.PromptSource != "custom:demo" {
+		t.Fatalf("custom prompt metadata = %#v, want custom source", custom)
 	}
 }
 
@@ -549,12 +549,12 @@ func TestToolRegistry_Clone_Empty(t *testing.T) {
 
 func TestToolRegistry_Clone_PreservesHiddenToolState(t *testing.T) {
 	r := NewToolRegistry()
-	r.RegisterHidden(newMockTool("mcp_tool", "dynamic MCP tool"))
+	r.RegisterHidden(newMockTool("hidden_tool", "dynamic hidden tool"))
 
 	clone := r.Clone()
 
 	// Hidden tools with TTL=0 should not be gettable (same behavior as parent)
-	if _, ok := clone.Get("mcp_tool"); ok {
+	if _, ok := clone.Get("hidden_tool"); ok {
 		t.Error("expected hidden tool with TTL=0 to be invisible in clone")
 	}
 

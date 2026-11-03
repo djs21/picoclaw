@@ -1,8 +1,6 @@
 package tools
 
 import (
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/sipeed/picoclaw/pkg/audio/tts"
 	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/media"
@@ -13,8 +11,6 @@ import (
 type (
 	SendCallbackWithContext  = integrationtools.SendCallbackWithContext
 	ReactionCallback         = integrationtools.ReactionCallback
-	MCPManager               = integrationtools.MCPManager
-	MCPTool                  = integrationtools.MCPTool
 	FindSkillsTool           = integrationtools.FindSkillsTool
 	InstallSkillTool         = integrationtools.InstallSkillTool
 	MessageTool              = integrationtools.MessageTool
@@ -37,10 +33,6 @@ type (
 	WebSearchToolOptions     = integrationtools.WebSearchToolOptions
 	WebFetchTool             = integrationtools.WebFetchTool
 )
-
-func NewMCPTool(manager MCPManager, serverName string, tool *mcp.Tool) *MCPTool {
-	return integrationtools.NewMCPTool(manager, serverName, tool)
-}
 
 func NewFindSkillsTool(registryMgr *skills.RegistryManager, cache *skills.SearchCache) *FindSkillsTool {
 	return integrationtools.NewFindSkillsTool(registryMgr, cache)

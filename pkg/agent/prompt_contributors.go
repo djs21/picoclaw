@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/sipeed/picoclaw/pkg/tools"
@@ -54,61 +53,6 @@ func (c toolDiscoveryPromptContributor) ContributePrompt(
 	}, nil
 }
 
-type mcpServerPromptContributor struct {
-	serverName string
-	toolCount  int
-	deferred   bool
-}
-
-func (c mcpServerPromptContributor) PromptSource() PromptSourceDescriptor {
-	return PromptSourceDescriptor{
-		ID:              mcpPromptSourceID(c.serverName),
-		Owner:           "mcp",
-		Description:     fmt.Sprintf("MCP server %q capability prompt", c.serverName),
-		Allowed:         []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotMCP}},
-		StableByDefault: true,
-	}
-}
-
-func (c mcpServerPromptContributor) ContributePrompt(
-	_ context.Context,
-	req PromptBuildRequest,
-) ([]PromptPart, error) {
-	if req.SuppressToolUseRule {
-		return nil, nil
-	}
-	serverName := strings.TrimSpace(c.serverName)
-	if serverName == "" || c.toolCount <= 0 {
-		return nil, nil
-	}
-	if len(req.AllowedTools) > 0 &&
-		!promptAllowsToolPrefix(req, "mcp_"+promptSourceComponent(serverName)+"_") {
-		return nil, nil
-	}
-
-	availability := "available as native tools"
-	if c.deferred {
-		availability = "hidden behind tool discovery until unlocked"
-	}
-
-	return []PromptPart{
-		{
-			ID:     "capability.mcp." + promptSourceComponent(serverName),
-			Layer:  PromptLayerCapability,
-			Slot:   PromptSlotMCP,
-			Source: PromptSource{ID: mcpPromptSourceID(serverName), Name: "mcp:" + serverName},
-			Title:  "MCP server capability",
-			Content: fmt.Sprintf(
-				"MCP server `%s` is connected. It contributes %d tool(s), currently %s.",
-				serverName,
-				c.toolCount,
-				availability,
-			),
-			Stable: true,
-			Cache:  PromptCacheEphemeral,
-		},
-	}, nil
-}
 
 type agentDiscoveryPromptContributor struct {
 	agentID  string
@@ -157,50 +101,6 @@ func (c agentDiscoveryPromptContributor) ContributePrompt(
 	}, nil
 }
 
-func mcpPromptSourceID(serverName string) PromptSourceID {
-	return PromptSourceID("mcp:" + promptSourceComponent(serverName))
-}
-
-func promptSourceComponent(value string) string {
-	const maxLen = 64
-
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return "unnamed"
-	}
-
-	var b strings.Builder
-	lastWasSep := false
-	for _, r := range value {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-			lastWasSep = false
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastWasSep = false
-		case r == '-' || r == '_':
-			if !lastWasSep && b.Len() > 0 {
-				b.WriteRune(r)
-				lastWasSep = true
-			}
-		default:
-			if !lastWasSep && b.Len() > 0 {
-				b.WriteRune('_')
-				lastWasSep = true
-			}
-		}
-	}
-
-	result := strings.Trim(b.String(), "_")
-	if result == "" {
-		return "unnamed"
-	}
-	if len(result) > maxLen {
-		return result[:maxLen]
-	}
-	return result
-}
 
 func promptAllowsTool(req PromptBuildRequest, name string) bool {
 	if len(req.AllowedTools) == 0 {
@@ -211,18 +111,3 @@ func promptAllowsTool(req PromptBuildRequest, name string) bool {
 	return ok
 }
 
-func promptAllowsToolPrefix(req PromptBuildRequest, prefix string) bool {
-	if len(req.AllowedTools) == 0 {
-		return true
-	}
-	prefix = strings.ToLower(strings.TrimSpace(prefix))
-	if prefix == "" {
-		return false
-	}
-	for _, name := range req.AllowedTools {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(name)), prefix) {
-			return true
-		}
-	}
-	return false
-}

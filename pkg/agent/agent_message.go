@@ -47,9 +47,6 @@ func (al *AgentLoop) ProcessDirectWithChannel(
 	if err := al.ensureHooksInitialized(ctx); err != nil {
 		return "", err
 	}
-	if err := al.ensureMCPInitialized(ctx); err != nil {
-		return "", err
-	}
 
 	msg := bus.InboundMessage{
 		Context: bus.InboundContext{
@@ -70,9 +67,6 @@ func (al *AgentLoop) ProcessHeartbeat(
 	content, channel, chatID string,
 ) (string, error) {
 	if err := al.ensureHooksInitialized(ctx); err != nil {
-		return "", err
-	}
-	if err := al.ensureMCPInitialized(ctx); err != nil {
 		return "", err
 	}
 

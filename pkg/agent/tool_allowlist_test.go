@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sipeed/picoclaw/pkg/config"
 	agenttools "github.com/sipeed/picoclaw/pkg/tools"
 )
 
@@ -30,7 +29,7 @@ func (t *allowlistTestTool) Execute(
 func TestUnknownAgentToolNames(t *testing.T) {
 	workspace := setupWorkspace(t, map[string]string{
 		"AGENT.md": `---
-tools: [read_file, web_serach, mcp_github_search]
+tools: [read_file, web_serach]
 ---
 # Agent
 `,
@@ -130,55 +129,4 @@ tools:
 	}
 }
 
-func TestUnknownAgentMCPServerNames(t *testing.T) {
-	workspace := setupWorkspace(t, map[string]string{
-		"AGENT.md": `---
-mcpServers: [github, githb]
----
-# Agent
-`,
-	})
-	defer cleanupWorkspace(t, workspace)
 
-	cfg := &config.Config{
-		Tools: config.ToolsConfig{
-			MCP: config.MCPConfig{
-				Servers: map[string]config.MCPServerConfig{
-					"github": {Enabled: true},
-				},
-			},
-		},
-	}
-
-	unknown := unknownAgentMCPServerNames(cfg, loadAgentDefinition(workspace))
-	if len(unknown) != 1 || unknown[0] != "githb" {
-		t.Fatalf("unknownAgentMCPServerNames() = %v, want [githb]", unknown)
-	}
-}
-
-func TestUnknownAgentMCPServerNamesMatchesConfigCaseInsensitively(t *testing.T) {
-	workspace := setupWorkspace(t, map[string]string{
-		"AGENT.md": `---
-mcpServers: [github, FileSystem, slak]
----
-# Agent
-`,
-	})
-	defer cleanupWorkspace(t, workspace)
-
-	cfg := &config.Config{
-		Tools: config.ToolsConfig{
-			MCP: config.MCPConfig{
-				Servers: map[string]config.MCPServerConfig{
-					"GitHub":     {Enabled: true},
-					"filesystem": {Enabled: true},
-				},
-			},
-		},
-	}
-
-	unknown := unknownAgentMCPServerNames(cfg, loadAgentDefinition(workspace))
-	if len(unknown) != 1 || unknown[0] != "slak" {
-		t.Fatalf("unknownAgentMCPServerNames() = %v, want [slak]", unknown)
-	}
-}

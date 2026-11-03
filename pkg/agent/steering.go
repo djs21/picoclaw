@@ -389,10 +389,6 @@ func (al *AgentLoop) Continue(ctx context.Context, sessionKey, channel, chatID s
 		al.activeTurnStates.Delete(sessionKey)
 		return "", err
 	}
-	if err := al.ensureMCPInitialized(ctx); err != nil {
-		al.activeTurnStates.Delete(sessionKey)
-		return "", err
-	}
 
 	steeringMsgs := al.dequeueSteeringMessagesForScopeWithFallback(sessionKey)
 	if len(steeringMsgs) == 0 {

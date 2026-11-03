@@ -64,11 +64,6 @@ func listCommand() Definition {
 					))
 				},
 			},
-			{
-				Name:        "mcp",
-				Description: "Configured MCP servers",
-				Handler:     listMCPServersHandler(),
-			},
 		},
 	}
 }

@@ -21,8 +21,6 @@ maxTurns: 8
 skills:
   - review
   - search-docs
-mcpServers:
-  - github
 metadata:
   mode: strict
 ---
@@ -60,9 +58,6 @@ Act directly and use tools first.
 	}
 	if len(definition.Agent.Frontmatter.Skills) != 2 {
 		t.Fatalf("expected skills to be parsed, got %v", definition.Agent.Frontmatter.Skills)
-	}
-	if len(definition.Agent.Frontmatter.MCPServers) != 1 || definition.Agent.Frontmatter.MCPServers[0] != "github" {
-		t.Fatalf("expected mcpServers to be parsed, got %v", definition.Agent.Frontmatter.MCPServers)
 	}
 	if definition.Agent.Frontmatter.Fields["metadata"] == nil {
 		t.Fatal("expected arbitrary frontmatter fields to remain available")
@@ -157,7 +152,6 @@ Keep going.
 		definition.Agent.Frontmatter.MaxTurns != nil ||
 		len(definition.Agent.Frontmatter.Tools) != 0 ||
 		len(definition.Agent.Frontmatter.Skills) != 0 ||
-		len(definition.Agent.Frontmatter.MCPServers) != 0 ||
 		len(definition.Agent.Frontmatter.Fields) != 0 {
 		t.Fatalf("expected invalid frontmatter to decode as empty struct, got %+v", definition.Agent.Frontmatter)
 	}

@@ -26,10 +26,6 @@ func TestHandleListTools(t *testing.T) {
 	cfg.Tools.Skills.Enabled = true
 	cfg.Tools.Spawn.Enabled = true
 	cfg.Tools.Subagent.Enabled = false
-	cfg.Tools.MCP.Enabled = true
-	cfg.Tools.MCP.Discovery.Enabled = true
-	cfg.Tools.MCP.Discovery.UseRegex = true
-	cfg.Tools.MCP.Discovery.UseBM25 = false
 	err = config.SaveConfig(configPath, cfg)
 	if err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
@@ -69,24 +65,6 @@ func TestHandleListTools(t *testing.T) {
 	}
 	if gotTools["find_skills"].Status != "enabled" {
 		t.Fatalf("find_skills status = %q, want enabled", gotTools["find_skills"].Status)
-	}
-	if gotTools["tool_search_tool_regex"].Status != "enabled" {
-		t.Fatalf("tool_search_tool_regex status = %q, want enabled", gotTools["tool_search_tool_regex"].Status)
-	}
-	if gotTools["tool_search_tool_regex"].ConfigKey != "mcp.discovery.use_regex" {
-		t.Fatalf(
-			"tool_search_tool_regex config_key = %q, want mcp.discovery.use_regex",
-			gotTools["tool_search_tool_regex"].ConfigKey,
-		)
-	}
-	if gotTools["tool_search_tool_bm25"].Status != "disabled" {
-		t.Fatalf("tool_search_tool_bm25 status = %q, want disabled", gotTools["tool_search_tool_bm25"].Status)
-	}
-	if gotTools["tool_search_tool_bm25"].ConfigKey != "mcp.discovery.use_bm25" {
-		t.Fatalf(
-			"tool_search_tool_bm25 config_key = %q, want mcp.discovery.use_bm25",
-			gotTools["tool_search_tool_bm25"].ConfigKey,
-		)
 	}
 	if runtime.GOOS == "linux" {
 		if gotTools["i2c"].Status != "disabled" {
@@ -171,9 +149,6 @@ func TestHandleUpdateToolState(t *testing.T) {
 	cfg.Tools.Spawn.Enabled = false
 	cfg.Tools.Subagent.Enabled = false
 	cfg.Tools.Cron.Enabled = false
-	cfg.Tools.MCP.Enabled = false
-	cfg.Tools.MCP.Discovery.Enabled = false
-	cfg.Tools.MCP.Discovery.UseRegex = false
 	err = config.SaveConfig(configPath, cfg)
 	if err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
@@ -195,18 +170,6 @@ func TestHandleUpdateToolState(t *testing.T) {
 		t.Fatalf("spawn status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 
-	rec2 := httptest.NewRecorder()
-	req2 := httptest.NewRequest(
-		http.MethodPut,
-		"/api/tools/tool_search_tool_regex/state",
-		bytes.NewBufferString(`{"enabled":true}`),
-	)
-	req2.Header.Set("Content-Type", "application/json")
-	mux.ServeHTTP(rec2, req2)
-	if rec2.Code != http.StatusOK {
-		t.Fatalf("regex status = %d, want %d, body=%s", rec2.Code, http.StatusOK, rec2.Body.String())
-	}
-
 	rec3 := httptest.NewRecorder()
 	req3 := httptest.NewRequest(
 		http.MethodPut,
@@ -225,9 +188,6 @@ func TestHandleUpdateToolState(t *testing.T) {
 	}
 	if !updated.Tools.Spawn.Enabled || !updated.Tools.Subagent.Enabled {
 		t.Fatalf("spawn/subagent should both be enabled: %#v", updated.Tools)
-	}
-	if !updated.Tools.MCP.Enabled || !updated.Tools.MCP.Discovery.Enabled || !updated.Tools.MCP.Discovery.UseRegex {
-		t.Fatalf("mcp regex discovery should be enabled: %#v", updated.Tools.MCP)
 	}
 	if !updated.Tools.Cron.Enabled {
 		t.Fatalf("cron should be enabled: %#v", updated.Tools.Cron)

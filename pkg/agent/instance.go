@@ -44,7 +44,6 @@ type AgentInstance struct {
 	Definition                AgentContextDefinition
 	Subagents                 *config.SubagentsConfig
 	SkillsFilter              []string
-	MCPServerAllowlist        map[string]struct{}
 	Candidates                []providers.FallbackCandidate
 	ImageCandidates           []providers.FallbackCandidate
 
@@ -115,7 +114,6 @@ func NewAgentInstance(
 	allowReadPaths := buildAllowReadPatterns(cfg)
 	allowWritePaths := compilePatterns(cfg.Tools.AllowWritePaths)
 	agentToolAllowlist := resolveAgentToolAllowlist(definition)
-	agentMCPServerAllowlist := resolveAgentMCPServerAllowlist(definition)
 
 	toolsRegistry := tools.NewToolRegistry()
 	toolsRegistry.SetAllowlist(agentToolAllowlist)
@@ -165,12 +163,7 @@ func NewAgentInstance(
 	sessionsDir := filepath.Join(workspace, "sessions")
 	sessions := initSessionStore(sessionsDir)
 
-	mcpDiscoveryActive := agentHasDiscoverableMCPServers(cfg, agentMCPServerAllowlist)
 	contextBuilder := NewContextBuilder(workspace).
-		WithToolDiscovery(
-			mcpDiscoveryActive && cfg.Tools.MCP.Discovery.UseBM25,
-			mcpDiscoveryActive && cfg.Tools.MCP.Discovery.UseRegex,
-		).
 		WithSplitOnMarker(cfg.Agents.Defaults.SplitOnMarker)
 
 	agentID := routing.DefaultAgentID
@@ -187,7 +180,6 @@ func NewAgentInstance(
 		subagents = agentCfg.Subagents
 		skillsFilter = resolveAgentSkillsFilter(agentCfg, definition)
 	}
-	warnOnUnknownAgentMCPServerDeclarations(agentID, workspace, cfg, definition)
 
 	maxIter := defaults.MaxToolIterations
 	if maxIter == 0 {
@@ -342,7 +334,6 @@ func NewAgentInstance(
 		Definition:                definition,
 		Subagents:                 subagents,
 		SkillsFilter:              skillsFilter,
-		MCPServerAllowlist:        agentMCPServerAllowlist,
 		Candidates:                candidates,
 		ImageCandidates:           imageCandidates,
 		Router:                    router,
@@ -631,14 +622,6 @@ func resolveAgentSkillsFilter(
 		return nil
 	}
 	return append([]string(nil), agentCfg.Skills...)
-}
-
-func (a *AgentInstance) AllowsMCPServer(serverName string) bool {
-	if a == nil || a.MCPServerAllowlist == nil {
-		return true
-	}
-	_, ok := a.MCPServerAllowlist[strings.ToLower(strings.TrimSpace(serverName))]
-	return ok
 }
 
 func compilePatterns(patterns []string) []*regexp.Regexp {

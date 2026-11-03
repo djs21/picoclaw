@@ -35,9 +35,9 @@ func TestPromptRegistry_AllowsUnregisteredSourceInCompatibilityMode(t *testing.T
 	err := registry.ValidatePart(PromptPart{
 		ID:      "unregistered.part",
 		Layer:   PromptLayerCapability,
-		Slot:    PromptSlotMCP,
-		Source:  PromptSource{ID: "mcp:dynamic-server"},
-		Content: "dynamic MCP prompt",
+		Slot:    PromptSlotTooling,
+		Source:  PromptSource{ID: "dynamic:server"},
+		Content: "dynamic prompt",
 	})
 	if err != nil {
 		t.Fatalf("ValidatePart() error = %v, want nil for unregistered source", err)
@@ -266,68 +266,6 @@ func TestContextBuilder_CustomToolAllowListSuppressesReadFileSkillInstruction(t 
 	}
 }
 
-func TestContextBuilder_CollectsMCPServerContributor(t *testing.T) {
-	t.Setenv("PICOCLAW_BUILTIN_SKILLS", t.TempDir())
-	cb := NewContextBuilder(t.TempDir())
-	err := cb.RegisterPromptContributor(mcpServerPromptContributor{
-		serverName: "GitHub Server",
-		toolCount:  3,
-		deferred:   true,
-	})
-	if err != nil {
-		t.Fatalf("RegisterPromptContributor() error = %v", err)
-	}
-
-	messages := cb.BuildMessagesFromPrompt(PromptBuildRequest{CurrentMessage: "hello"})
-	system := messages[0]
-	if !strings.Contains(system.Content, "MCP server `GitHub Server` is connected") {
-		t.Fatalf("system prompt missing MCP contributor content: %q", system.Content)
-	}
-
-	var found bool
-	for _, part := range system.SystemParts {
-		if part.PromptSource == "mcp:github_server" {
-			found = true
-			if part.PromptLayer != string(PromptLayerCapability) || part.PromptSlot != string(PromptSlotMCP) {
-				t.Fatalf("mcp metadata = %#v, want capability/mcp", part)
-			}
-			if part.CacheControl == nil || part.CacheControl.Type != "ephemeral" {
-				t.Fatalf("mcp cache control = %#v, want ephemeral", part.CacheControl)
-			}
-		}
-	}
-	if !found {
-		t.Fatal("system parts missing MCP prompt metadata")
-	}
-}
-
-func TestContextBuilder_SuppressesMCPServerContributorWhenToolsUnavailable(t *testing.T) {
-	t.Setenv("PICOCLAW_BUILTIN_SKILLS", t.TempDir())
-	cb := NewContextBuilder(t.TempDir())
-	err := cb.RegisterPromptContributor(mcpServerPromptContributor{
-		serverName: "GitHub Server",
-		toolCount:  3,
-		deferred:   false,
-	})
-	if err != nil {
-		t.Fatalf("RegisterPromptContributor() error = %v", err)
-	}
-
-	messages := cb.BuildMessagesFromPrompt(PromptBuildRequest{
-		CurrentMessage:      "hello",
-		SuppressToolUseRule: true,
-	})
-	system := messages[0]
-	if strings.Contains(system.Content, "MCP server `GitHub Server` is connected") ||
-		strings.Contains(system.Content, "available as native tools") {
-		t.Fatalf("system prompt includes MCP tooling despite tools being unavailable: %q", system.Content)
-	}
-	for _, part := range system.SystemParts {
-		if part.PromptSource == "mcp:github_server" {
-			t.Fatalf("system parts include MCP tooling despite tools being unavailable: %#v", part)
-		}
-	}
-}
 
 func TestContextBuilder_SuppressesAgentDiscoveryContributorWhenToolsUnavailable(t *testing.T) {
 	t.Setenv("PICOCLAW_BUILTIN_SKILLS", t.TempDir())
@@ -372,14 +310,6 @@ func TestContextBuilder_CustomToolAllowListSuppressesUnallowedToolContributors(t
 				}}
 			},
 		)
-	err := cb.RegisterPromptContributor(mcpServerPromptContributor{
-		serverName: "GitHub Server",
-		toolCount:  3,
-		deferred:   false,
-	})
-	if err != nil {
-		t.Fatalf("RegisterPromptContributor() error = %v", err)
-	}
 
 	messages := cb.BuildMessagesFromPrompt(PromptBuildRequest{
 		CurrentMessage: "hello",
@@ -389,7 +319,6 @@ func TestContextBuilder_CustomToolAllowListSuppressesUnallowedToolContributors(t
 	blockedSnippets := []string{
 		"tool_search_tool_bm25",
 		"tool_search_tool_regex",
-		"MCP server `GitHub Server` is connected",
 		"Agent Discovery",
 		"calling spawn",
 	}
@@ -400,7 +329,7 @@ func TestContextBuilder_CustomToolAllowListSuppressesUnallowedToolContributors(t
 	}
 	for _, part := range system.SystemParts {
 		switch part.PromptSource {
-		case string(PromptSourceToolDiscovery), string(PromptSourceAgentDiscovery), "mcp:github_server":
+		case string(PromptSourceToolDiscovery), string(PromptSourceAgentDiscovery):
 			t.Fatalf("system parts include unallowed tool contributor: %#v", part)
 		}
 	}
@@ -428,12 +357,12 @@ func TestContextBuilder_CollectsRegisteredPromptContributors(t *testing.T) {
 		desc: PromptSourceDescriptor{
 			ID:      sourceID,
 			Owner:   "test",
-			Allowed: []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotMCP}},
+			Allowed: []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotTooling}},
 		},
 		part: PromptPart{
-			ID:      "capability.mcp.test",
+			ID:      "capability.tooling.test",
 			Layer:   PromptLayerCapability,
-			Slot:    PromptSlotMCP,
+			Slot:    PromptSlotTooling,
 			Source:  PromptSource{ID: sourceID, Name: "test"},
 			Content: "registered contributor prompt",
 		},

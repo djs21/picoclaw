@@ -35,7 +35,7 @@ func TestRuntimeEventLoggerFiltering(t *testing.T) {
 	}
 
 	cfg.Events.Logging.Include = []string{"*"}
-	cfg.Events.Logging.Exclude = []string{"mcp.*"}
+	cfg.Events.Logging.Exclude = []string{"bus.*"}
 	eventLogger = newRuntimeEventLogger(cfg)
 	if !eventLogger.shouldLog(runtimeevents.Event{
 		Kind:     runtimeevents.KindGatewayReady,
@@ -44,10 +44,10 @@ func TestRuntimeEventLoggerFiltering(t *testing.T) {
 		t.Fatal("include * should log gateway events")
 	}
 	if eventLogger.shouldLog(runtimeevents.Event{
-		Kind:     runtimeevents.KindMCPServerConnected,
+		Kind:     runtimeevents.KindBusCloseStarted,
 		Severity: runtimeevents.SeverityInfo,
 	}) {
-		t.Fatal("exclude mcp.* should suppress MCP events")
+		t.Fatal("exclude bus.* should suppress bus events")
 	}
 
 	cfg.Events.Logging.Exclude = nil

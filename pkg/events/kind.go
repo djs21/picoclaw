@@ -90,19 +90,6 @@ const (
 	KindGatewayReloadCompleted Kind = "gateway.reload.completed"
 	// KindGatewayReloadFailed is emitted when gateway reload fails.
 	KindGatewayReloadFailed Kind = "gateway.reload.failed"
-
-	// KindMCPServerConnected is emitted when an MCP server connects.
-	KindMCPServerConnected Kind = "mcp.server.connected"
-	// KindMCPServerConnecting is emitted before connecting to an MCP server.
-	KindMCPServerConnecting Kind = "mcp.server.connecting"
-	// KindMCPServerFailed is emitted when an MCP server fails.
-	KindMCPServerFailed Kind = "mcp.server.failed"
-	// KindMCPToolDiscovered is emitted when an MCP tool is discovered.
-	KindMCPToolDiscovered Kind = "mcp.tool.discovered"
-	// KindMCPToolCallStart is emitted when an MCP tool call starts.
-	KindMCPToolCallStart Kind = "mcp.tool.call.start"
-	// KindMCPToolCallEnd is emitted when an MCP tool call ends.
-	KindMCPToolCallEnd Kind = "mcp.tool.call.end"
 )
 
 var knownKinds = []Kind{
@@ -146,12 +133,6 @@ var knownKinds = []Kind{
 	KindGatewayReloadStarted,
 	KindGatewayReloadCompleted,
 	KindGatewayReloadFailed,
-	KindMCPServerConnected,
-	KindMCPServerConnecting,
-	KindMCPServerFailed,
-	KindMCPToolDiscovered,
-	KindMCPToolCallStart,
-	KindMCPToolCallEnd,
 }
 
 // KnownKinds returns the runtime event kinds declared by this package.

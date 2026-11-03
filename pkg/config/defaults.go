@@ -425,20 +425,6 @@ func DefaultConfig() *Config {
 			SendTTS: ToolConfig{
 				Enabled: false,
 			},
-			MCP: MCPConfig{
-				ToolConfig: ToolConfig{
-					Enabled: false,
-				},
-				Discovery: ToolDiscoveryConfig{
-					Enabled:          false,
-					TTL:              5,
-					MaxSearchResults: 5,
-					UseBM25:          true,
-					UseRegex:         false,
-				},
-				MaxInlineTextChars: DefaultMCPMaxInlineTextChars,
-				Servers:            map[string]MCPServerConfig{},
-			},
 			AppendFile: ToolConfig{
 				Enabled: true,
 			},

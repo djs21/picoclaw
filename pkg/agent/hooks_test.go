@@ -367,7 +367,7 @@ func TestHookManager_BeforeLLMAllowsJSONRoundTripNonSystemMessageMutation(t *tes
 					Parameters:  map[string]any{"type": "object"},
 				},
 				PromptLayer:  string(PromptLayerCapability),
-				PromptSlot:   string(PromptSlotMCP),
+				PromptSlot:   string(PromptSlotTooling),
 				PromptSource: "mcp:github",
 			},
 		},
@@ -403,7 +403,7 @@ func TestHookManager_BeforeLLMControlsToolDefinitionMutation(t *testing.T) {
 					Parameters:  map[string]any{"type": "object"},
 				},
 				PromptLayer:  string(PromptLayerCapability),
-				PromptSlot:   string(PromptSlotMCP),
+				PromptSlot:   string(PromptSlotTooling),
 				PromptSource: "mcp:github",
 			},
 		},
@@ -422,7 +422,7 @@ func TestHookManager_BeforeLLMControlsToolDefinitionMutation(t *testing.T) {
 	if got.Tools[0].Function.Description != "create issue" {
 		t.Fatalf("tool description = %q, want original", got.Tools[0].Function.Description)
 	}
-	if got.Tools[0].PromptSource != "mcp:github" || got.Tools[0].PromptSlot != string(PromptSlotMCP) {
+	if got.Tools[0].PromptSource != "mcp:github" || got.Tools[0].PromptSlot != string(PromptSlotTooling) {
 		t.Fatalf("tool prompt metadata = %#v, want original mcp metadata", got.Tools[0])
 	}
 }

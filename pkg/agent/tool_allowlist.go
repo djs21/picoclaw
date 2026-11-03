@@ -4,30 +4,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/logger"
 	"github.com/sipeed/picoclaw/pkg/tools"
 )
-
-const dynamicMCPToolPrefix = "mcp_"
-
-func normalizeMCPServerName(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
-}
-
-func normalizedMCPServerNameSet(
-	servers map[string]config.MCPServerConfig,
-) map[string]struct{} {
-	normalized := make(map[string]struct{}, len(servers))
-	for serverName := range servers {
-		name := normalizeMCPServerName(serverName)
-		if name == "" {
-			continue
-		}
-		normalized[name] = struct{}{}
-	}
-	return normalized
-}
 
 func warnOnUnknownAgentToolDeclarations(
 	agentID, workspace string,
@@ -48,25 +27,6 @@ func warnOnUnknownAgentToolDeclarations(
 	}
 }
 
-func warnOnUnknownAgentMCPServerDeclarations(
-	agentID, workspace string,
-	cfg *config.Config,
-	definition AgentContextDefinition,
-) {
-	if cfg == nil || frontmatterParseFailed(definition) {
-		return
-	}
-
-	if unknownServers := unknownAgentMCPServerNames(cfg, definition); len(unknownServers) > 0 {
-		logger.WarnCF("agent", "AGENT.md declares unknown MCP server names",
-			map[string]any{
-				"agent_id":    agentID,
-				"workspace":   workspace,
-				"mcp_servers": unknownServers,
-			})
-	}
-}
-
 func unknownAgentToolNames(
 	registry *tools.ToolRegistry,
 	definition AgentContextDefinition,
@@ -79,7 +39,7 @@ func unknownAgentToolNames(
 	unknown := make(map[string]struct{})
 	for _, raw := range definition.Agent.Frontmatter.Tools {
 		name := strings.ToLower(strings.TrimSpace(raw))
-		if name == "" || strings.HasPrefix(name, dynamicMCPToolPrefix) {
+		if name == "" {
 			continue
 		}
 		if _, ok := known[name]; ok {
@@ -104,27 +64,6 @@ func registeredRuntimeToolNames(registry *tools.ToolRegistry) map[string]struct{
 		known[name] = struct{}{}
 	}
 	return known
-}
-
-func unknownAgentMCPServerNames(cfg *config.Config, definition AgentContextDefinition) []string {
-	if cfg == nil || definition.Agent == nil || definition.Agent.Frontmatter.MCPServers == nil {
-		return nil
-	}
-
-	knownServers := normalizedMCPServerNameSet(cfg.Tools.MCP.Servers)
-	unknown := make(map[string]struct{})
-	for _, raw := range definition.Agent.Frontmatter.MCPServers {
-		name := normalizeMCPServerName(raw)
-		if name == "" {
-			continue
-		}
-		if _, ok := knownServers[name]; ok {
-			continue
-		}
-		unknown[name] = struct{}{}
-	}
-
-	return sortedKeys(unknown)
 }
 
 func sortedKeys(values map[string]struct{}) []string {
@@ -162,26 +101,6 @@ func resolveAgentToolAllowlist(definition AgentContextDefinition) []string {
 	}
 
 	return sortedKeys(allowlist)
-}
-
-func resolveAgentMCPServerAllowlist(definition AgentContextDefinition) map[string]struct{} {
-	if frontmatterParseFailed(definition) {
-		return map[string]struct{}{}
-	}
-	if definition.Agent == nil || !frontmatterDeclaresField(definition, "mcpServers") {
-		return nil
-	}
-
-	allowlist := make(map[string]struct{}, len(definition.Agent.Frontmatter.MCPServers))
-	for _, raw := range definition.Agent.Frontmatter.MCPServers {
-		trimmed := strings.ToLower(strings.TrimSpace(raw))
-		if trimmed == "" {
-			continue
-		}
-		allowlist[trimmed] = struct{}{}
-	}
-
-	return allowlist
 }
 
 func frontmatterDeclaresField(definition AgentContextDefinition, field string) bool {

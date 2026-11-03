@@ -33,7 +33,6 @@ const (
 
 	ToolPromptLayerCapability = toolshared.ToolPromptLayerCapability
 	ToolPromptSlotTooling     = toolshared.ToolPromptSlotTooling
-	ToolPromptSlotMCP         = toolshared.ToolPromptSlotMCP
 	ToolPromptSourceRegistry  = toolshared.ToolPromptSourceRegistry
 	ToolPromptSourceDiscovery = toolshared.ToolPromptSourceDiscovery
 )

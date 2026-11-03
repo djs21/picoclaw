@@ -50,18 +50,6 @@ In practice, each suite gives us:
 - automatic cleanup after the run
 - a clean place to encode the exact regression we want to prevent
 
-## Current Reference Suite
-
-[`integration/suites/mcp-streamable/`](suites/mcp-streamable/) is the reference example today.
-
-It does three things:
-
-- builds and starts a fixture MCP server from [`integration/fixtures/mcp-streamable-server/`](fixtures/mcp-streamable-server/)
-- injects connection details into the runner container through environment variables
-- runs [`TestIntegration_RealConfiguredServer`](../pkg/mcp/manager_real_server_integration_test.go) to verify that PicoClaw can connect to a real server, discover tools, invoke one, and validate the response payload
-
-That suite complements [`TestIntegration_StreamableHTTPCompatibility`](../pkg/mcp/manager_integration_test.go), which exercises the same area in-process. Together they cover both protocol behavior and real service wiring.
-
 ## Suite Layout
 
 Each suite directory must contain:
@@ -115,33 +103,10 @@ bash ./scripts/run-integration-tests.sh
 ### Run a Single Suite
 
 ```bash
-bash ./scripts/run-integration-tests.sh mcp-streamable
+bash ./scripts/run-integration-tests.sh my-suite
 ```
 
 This is the fastest way to reproduce exactly what the CI integration job does for one suite.
-
-### Run a Tagged Integration Test Directly
-
-For faster iteration while writing the test, you can run the Go test itself without Docker:
-
-```bash
-go test -tags=goolm,stdjson,integration ./pkg/mcp -run TestIntegration_StreamableHTTPCompatibility -v
-```
-
-You can also run the real-server smoke test directly if you provide the same environment variables that the Docker suite would inject:
-
-```bash
-PICOCLAW_MCP_REAL_SERVER_JSON='{"enabled":true,"type":"http","url":"http://127.0.0.1:8080/mcp"}' \
-PICOCLAW_MCP_REAL_TOOL_NAME=echo \
-PICOCLAW_MCP_REAL_TOOL_ARGS_JSON='{"message":"hello"}' \
-PICOCLAW_MCP_REAL_EXPECT_SUBSTRING=hello \
-go test -tags=goolm,stdjson,integration ./pkg/mcp -run TestIntegration_RealConfiguredServer -v
-```
-
-Notes:
-
-- avoid `-short`: the current integration tests skip in short mode
-- use direct `go test` for tight feedback loops, then validate the Docker suite before committing
 
 ## When to Add an Integration Test
 

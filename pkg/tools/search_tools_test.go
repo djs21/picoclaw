@@ -35,15 +35,15 @@ func setupPopulatedRegistry() *ToolRegistry {
 
 	// Hidden tools (must be found by searches)
 	reg.RegisterHidden(&mockSearchableTool{
-		name: "mcp_read_file",
+		name: "read_file",
 		desc: "Read the contents of a system file",
 	})
 	reg.RegisterHidden(&mockSearchableTool{
-		name: "mcp_list_dir",
+		name: "list_dir",
 		desc: "List directories and files in the system",
 	})
 	reg.RegisterHidden(&mockSearchableTool{
-		name: "mcp_fetch_net",
+		name: "fetch_net",
 		desc: "Fetch data from a network database",
 	})
 
@@ -85,18 +85,18 @@ func TestRegexSearchTool_Execute(t *testing.T) {
 		if !strings.Contains(res.ForLLM, "SUCCESS: These tools have been temporarily UNLOCKED") {
 			t.Errorf("Expected success string, got: %v", res.ForLLM)
 		}
-		if !strings.Contains(res.ForLLM, "mcp_read_file") {
-			t.Errorf("Expected 'mcp_read_file' in results")
+		if !strings.Contains(res.ForLLM, "read_file") {
+			t.Errorf("Expected 'read_file' in results")
 		}
 
 		// Verify that the TTL has been updated for the tools found
 		reg.mu.RLock()
 		defer reg.mu.RUnlock()
-		if reg.tools["mcp_read_file"].TTL != 5 {
-			t.Errorf("Expected TTL of 'mcp_read_file' to be promoted to 5, got %d", reg.tools["mcp_read_file"].TTL)
+		if reg.tools["read_file"].TTL != 5 {
+			t.Errorf("Expected TTL of 'read_file' to be promoted to 5, got %d", reg.tools["read_file"].TTL)
 		}
-		if reg.tools["mcp_fetch_net"].TTL != 0 {
-			t.Errorf("Expected 'mcp_fetch_net' to NOT be promoted (TTL=0)")
+		if reg.tools["fetch_net"].TTL != 0 {
+			t.Errorf("Expected 'fetch_net' to NOT be promoted (TTL=0)")
 		}
 	})
 }
@@ -126,14 +126,14 @@ func TestBM25SearchTool_Execute(t *testing.T) {
 		if res.IsError {
 			t.Fatalf("Unexpected error: %v", res.ForLLM)
 		}
-		if !strings.Contains(res.ForLLM, "mcp_read_file") {
-			t.Errorf("Expected 'mcp_read_file' in BM25 results")
+		if !strings.Contains(res.ForLLM, "read_file") {
+			t.Errorf("Expected 'read_file' in BM25 results")
 		}
 
 		reg.mu.RLock()
 		defer reg.mu.RUnlock()
-		if reg.tools["mcp_read_file"].TTL != 3 {
-			t.Errorf("Expected TTL of 'mcp_read_file' to be promoted to 3")
+		if reg.tools["read_file"].TTL != 3 {
+			t.Errorf("Expected TTL of 'read_file' to be promoted to 3")
 		}
 	})
 }
@@ -153,7 +153,7 @@ func TestRegexSearchTool_PatternTooLong(t *testing.T) {
 func TestSearchRegex_ZeroMaxResults(t *testing.T) {
 	reg := setupPopulatedRegistry()
 
-	res, err := reg.SearchRegex("mcp", 0)
+	res, err := reg.SearchRegex("read", 0)
 	if err != nil {
 		t.Fatalf("SearchRegex failed: %v", err)
 	}
