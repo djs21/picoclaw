@@ -10,4 +10,4 @@ Documentation for this skill is lazy-loaded to reduce prompt context size.
 
 When this skill is relevant, read the full instructions with `read_file`:
 
-`~/.picoclaw/workspace/skills/agent-browser/DOC.md`
+`skills/agent-browser/DOC.md` (relative to your workspace)

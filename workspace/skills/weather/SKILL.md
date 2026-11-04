@@ -11,4 +11,4 @@ Documentation for this skill is lazy-loaded to reduce prompt context size.
 
 When this skill is relevant, read the full instructions with `read_file`:
 
-`~/.picoclaw/workspace/skills/weather/DOC.md`
+`skills/weather/DOC.md` (relative to your workspace)
