@@ -317,6 +317,21 @@ func DefaultConfig() *Config {
 		Tools: ToolsConfig{
 			FilterSensitiveData: true,
 			FilterMinLength:     8,
+			LazyLoading: LazyLoadingConfig{
+				Enabled:          false,
+				Mode:             "hybrid",
+				DefaultTTL:       3,
+				AutoIntercept:    true,
+				MaxSearchResults: 5,
+				CoreTools: []string{
+					"read_file",
+					"write_file",
+					"edit_file",
+					"append_file",
+					"list_dir",
+					"exec",
+				},
+			},
 			MediaCleanup: MediaCleanupConfig{
 				ToolConfig: ToolConfig{
 					Enabled: true,

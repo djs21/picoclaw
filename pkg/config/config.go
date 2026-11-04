@@ -1114,6 +1114,7 @@ type ToolsConfig struct {
 	Exec            ExecConfig         `json:"exec"              yaml:"-"`
 	Skills          SkillsToolsConfig  `json:"skills"            yaml:"skills,omitempty"`
 	MediaCleanup    MediaCleanupConfig `json:"media_cleanup"     yaml:"-"`
+	LazyLoading     LazyLoadingConfig  `json:"lazy_loading"      yaml:"lazy_loading,omitempty"`
 	AppendFile      ToolConfig         `json:"append_file"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_APPEND_FILE_"`
 	EditFile        ToolConfig         `json:"edit_file"         yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_EDIT_FILE_"`
 	FindSkills      ToolConfig         `json:"find_skills"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_FIND_SKILLS_"`
@@ -1137,6 +1138,30 @@ type ToolsConfig struct {
 // IsFilterSensitiveDataEnabled returns true if sensitive data filtering is enabled
 func (c *ToolsConfig) IsFilterSensitiveDataEnabled() bool {
 	return c.FilterSensitiveData
+}
+
+// LazyLoadingConfig configures dynamic/lazy loading of tools into context window.
+type LazyLoadingConfig struct {
+	Enabled          bool     `json:"enabled"            yaml:"enabled"`
+	Mode             string   `json:"mode,omitempty"     yaml:"mode,omitempty"`
+	DefaultTTL       int      `json:"default_ttl"        yaml:"default_ttl"`
+	AutoIntercept    bool     `json:"auto_intercept"     yaml:"auto_intercept"`
+	MaxSearchResults int      `json:"max_search_results" yaml:"max_search_results"`
+	CoreTools        []string `json:"core_tools"         yaml:"core_tools"`
+}
+
+// IsCoreTool checks if a given tool name is designated as a Core Tool.
+func (c *LazyLoadingConfig) IsCoreTool(name string) bool {
+	if c == nil || len(c.CoreTools) == 0 {
+		return false
+	}
+	target := strings.ToLower(strings.TrimSpace(name))
+	for _, ct := range c.CoreTools {
+		if strings.ToLower(strings.TrimSpace(ct)) == target {
+			return true
+		}
+	}
+	return false
 }
 
 // GetFilterMinLength returns the minimum content length for filtering (default: 8)
