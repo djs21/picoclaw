@@ -1175,3 +1175,19 @@ func TestTurnProfile_BeforeToolRespondCannotBypassDisallowedTool(t *testing.T) {
 		t.Fatalf("second provider call did not include denied tool result: %#v", provider.messages)
 	}
 }
+
+func TestToolUseSystemPromptRule_ContainsAntiLeakConstraints(t *testing.T) {
+	rule := toolUseSystemPromptRule()
+	requiredKeywords := []string{
+		"ALWAYS use tools",
+		"call:default_api",
+		"Never output raw tool execution text",
+		"structured tool call interface",
+	}
+	for _, kw := range requiredKeywords {
+		if !strings.Contains(rule, kw) {
+			t.Errorf("toolUseSystemPromptRule() missing required anti-leak constraint %q\nGot:\n%s", kw, rule)
+		}
+	}
+}
+
