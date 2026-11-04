@@ -467,3 +467,77 @@ func TestMessageTool_Execute_WithMedia(t *testing.T) {
 		t.Fatal("expected media type to be inferred")
 	}
 }
+
+func TestMessageTool_Execute_WithDirectFilePath(t *testing.T) {
+	tool := NewMessageTool()
+	store := media.NewFileMediaStore()
+	dir := t.TempDir()
+	docPath := filepath.Join(dir, "document.pdf")
+	if err := os.WriteFile(docPath, []byte("%PDF-1.4 sample pdf content"), 0o644); err != nil {
+		t.Fatalf("write doc: %v", err)
+	}
+	tool.ConfigureLocalMedia(dir, true, 1024*1024, []*regexp.Regexp{})
+	tool.SetMediaStore(store)
+
+	var gotContent string
+	var gotParts []bus.MediaPart
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		gotContent = content
+		gotParts = append([]bus.MediaPart(nil), mediaParts...)
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{
+		"file_path": "document.pdf",
+		"content":   "Here is your document",
+	})
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", result.ForLLM)
+	}
+	if gotContent != "Here is your document" {
+		t.Fatalf("content = %q, want 'Here is your document'", gotContent)
+	}
+	if len(gotParts) != 1 {
+		t.Fatalf("expected 1 media part from file_path, got %d", len(gotParts))
+	}
+	if gotParts[0].Filename != "document.pdf" {
+		t.Fatalf("filename = %q, want document.pdf", gotParts[0].Filename)
+	}
+	if gotParts[0].Ref == "" {
+		t.Fatal("expected non-empty media ref")
+	}
+}
+
+func TestMessageTool_Execute_FilePathWorkspaceRestriction(t *testing.T) {
+	tool := NewMessageTool()
+	store := media.NewFileMediaStore()
+	dir := t.TempDir()
+	outsideDir := t.TempDir()
+	outsideFile := filepath.Join(outsideDir, "secret.txt")
+	if err := os.WriteFile(outsideFile, []byte("secret"), 0o644); err != nil {
+		t.Fatalf("write secret: %v", err)
+	}
+
+	tool.ConfigureLocalMedia(dir, true, 1024*1024, []*regexp.Regexp{})
+	tool.SetMediaStore(store)
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{
+		"file_path": outsideFile,
+	})
+	if !result.IsError {
+		t.Fatal("expected error due to workspace restriction, got success")
+	}
+}
