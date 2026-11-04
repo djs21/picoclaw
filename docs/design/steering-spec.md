@@ -258,7 +258,7 @@ Strategy 2 was rejected for three reasons:
 | Tool batch | Steering | Skip (1) | Finish (2) |
 |---|---|---|---|
 | `[search, send_email]` | "don't send it" | Email not sent | Email sent |
-| `[query, write_file, spawn]` | "wrong database" | Only query runs | File + subagent wasted |
+| `[query, edit_file, spawn]` | "wrong database" | Only query runs | File + subagent wasted |
 | `[fetch₁, fetch₂, fetch₃, write]` | topic change | 1 fetch | 3 fetches + write, all discarded |
 
 **Wasted latency.** Tools like web fetches and API calls take seconds each. In a 3-tool batch averaging 3-4s per tool, the user would wait 10+ seconds for work that gets thrown away.

@@ -20,9 +20,8 @@ func TestHandleListTools(t *testing.T) {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
 	cfg.Tools.ReadFile.Enabled = true
-	cfg.Tools.WriteFile.Enabled = false
+	cfg.Tools.EditFile.Enabled = false
 	cfg.Tools.Cron.Enabled = true
-	cfg.Tools.FindSkills.Enabled = true
 	cfg.Tools.Skills.Enabled = true
 	cfg.Tools.Spawn.Enabled = true
 	cfg.Tools.Subagent.Enabled = false
@@ -54,8 +53,8 @@ func TestHandleListTools(t *testing.T) {
 	if gotTools["read_file"].Status != "enabled" {
 		t.Fatalf("read_file status = %q, want enabled", gotTools["read_file"].Status)
 	}
-	if gotTools["write_file"].Status != "disabled" {
-		t.Fatalf("write_file status = %q, want disabled", gotTools["write_file"].Status)
+	if gotTools["edit_file"].Status != "disabled" {
+		t.Fatalf("edit_file status = %q, want disabled", gotTools["edit_file"].Status)
 	}
 	if gotTools["cron"].Status != "enabled" {
 		t.Fatalf("cron status = %q, want enabled", gotTools["cron"].Status)
@@ -63,8 +62,20 @@ func TestHandleListTools(t *testing.T) {
 	if gotTools["spawn"].Status != "blocked" || gotTools["spawn"].ReasonCode != "requires_subagent" {
 		t.Fatalf("spawn = %#v, want blocked/requires_subagent", gotTools["spawn"])
 	}
-	if gotTools["find_skills"].Status != "enabled" {
-		t.Fatalf("find_skills status = %q, want enabled", gotTools["find_skills"].Status)
+	if gotTools["skills"].Status != "enabled" {
+		t.Fatalf("skills status = %q, want enabled", gotTools["skills"].Status)
+	}
+	for _, removed := range []string{
+		"find_skills",
+		"install_skill",
+		"write_file",
+		"append_file",
+		"spawn_status",
+		"subagent",
+	} {
+		if _, ok := gotTools[removed]; ok {
+			t.Fatalf("%s was consolidated or removed and must not be listed", removed)
+		}
 	}
 	if runtime.GOOS == "linux" {
 		if gotTools["i2c"].Status != "disabled" {
@@ -211,6 +222,36 @@ func TestHandleUpdateToolState(t *testing.T) {
 	}
 	if !updated.Tools.Serial.Enabled {
 		t.Fatalf("serial should be enabled: %#v", updated.Tools.Serial)
+	}
+}
+
+func TestHandleUpdateToolStateRejectsRemovedTools(t *testing.T) {
+	configPath, cleanup := setupOAuthTestEnv(t)
+	defer cleanup()
+
+	h := NewHandler(configPath)
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	for _, name := range []string{
+		"find_skills",
+		"install_skill",
+		"write_file",
+		"append_file",
+		"spawn_status",
+		"subagent",
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(
+			http.MethodPut,
+			"/api/tools/"+name+"/state",
+			bytes.NewBufferString(`{"enabled":true}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, want %d, body=%s", name, rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
 	}
 }
 

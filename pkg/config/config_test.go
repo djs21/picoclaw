@@ -3235,3 +3235,20 @@ func testChannelsConfigWithTokens() ChannelsConfig {
 	}
 	return channels
 }
+
+func TestLoadConfig_SpawnStatusLegacyFieldIsDropped(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.json")
+	raw := "{\n  \"version\": 3,\n  \"tools\": {\n    \"spawn_status\": {\n      \"enabled\": true\n    }\n  }\n}\n"
+	if err := os.WriteFile(configPath, []byte(raw), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	_, err := LoadConfig(configPath)
+	if err == nil {
+		t.Fatal("expected LoadConfig to reject removed tools.spawn_status, got nil")
+	}
+	if !strings.Contains(err.Error(), "tools.spawn_status") {
+		t.Fatalf("expected error mentioning tools.spawn_status, got: %v", err)
+	}
+}

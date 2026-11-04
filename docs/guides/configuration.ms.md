@@ -168,10 +168,8 @@ Apabila `restrict_to_workspace: true`, tools berikut disandboxkan:
 | Tool          | Fungsi            | Sekatan                             |
 | ------------- | ----------------- | ----------------------------------- |
 | `read_file`   | Baca fail         | Hanya fail dalam workspace          |
-| `write_file`  | Tulis fail        | Hanya fail dalam workspace          |
 | `list_dir`    | Senarai direktori | Hanya direktori dalam workspace     |
-| `edit_file`   | Edit fail         | Hanya fail dalam workspace          |
-| `append_file` | Tambah ke fail    | Hanya fail dalam workspace          |
+| `edit_file`   | Cipta, edit, tambah, tampal | Hanya fail dalam workspace     |
 | `exec`        | Jalankan arahan   | Laluan arahan mesti dalam workspace |
 
 #### Perlindungan Exec Tambahan

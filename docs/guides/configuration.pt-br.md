@@ -181,10 +181,8 @@ Quando `restrict_to_workspace: true`, as seguintes ferramentas são isoladas:
 | Ferramenta    | Função           | Restrição                              |
 | ------------- | ---------------- | -------------------------------------- |
 | `read_file`   | Ler arquivos     | Apenas arquivos dentro do workspace    |
-| `write_file`  | Escrever arquivos| Apenas arquivos dentro do workspace    |
 | `list_dir`    | Listar diretórios| Apenas diretórios dentro do workspace  |
-| `edit_file`   | Editar arquivos  | Apenas arquivos dentro do workspace    |
-| `append_file` | Anexar a arquivos| Apenas arquivos dentro do workspace    |
+| `edit_file`   | Criar, editar, anexar, aplicar patch | Apenas arquivos dentro do workspace |
 | `exec`        | Executar comandos| Caminhos de comando devem estar dentro do workspace |
 
 #### Proteção Adicional do Exec

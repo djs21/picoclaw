@@ -18,9 +18,17 @@ func TestLazyLoadingConfig_Defaults(t *testing.T) {
 	assert.Equal(t, 3, lazy.DefaultTTL)
 	assert.True(t, lazy.AutoIntercept)
 	assert.Equal(t, 5, lazy.MaxSearchResults)
-	assert.Contains(t, lazy.CoreTools, "read_file")
-	assert.Contains(t, lazy.CoreTools, "write_file")
-	assert.Contains(t, lazy.CoreTools, "exec")
+	assert.Equal(t, []string{"read_file", "edit_file", "exec", "web_search"}, lazy.CoreTools)
+}
+
+func TestLazyLoadingConfig_DefaultsDropLegacyTools(t *testing.T) {
+	cfg := DefaultConfig()
+	require.NotNil(t, cfg)
+
+	for _, legacy := range []string{"write_file", "append_file", "list_dir", "subagent", "spawn_status"} {
+		assert.NotContains(t, cfg.Tools.LazyLoading.CoreTools, legacy,
+			"%s was consolidated or removed and must not be a default core tool", legacy)
+	}
 }
 
 func TestLazyLoadingConfig_UnmarshalJSON(t *testing.T) {
@@ -52,12 +60,26 @@ func TestLazyLoadingConfig_UnmarshalJSON(t *testing.T) {
 func TestLazyLoadingConfig_HelperMethods(t *testing.T) {
 	lazy := LazyLoadingConfig{
 		Enabled:   true,
-		CoreTools: []string{"read_file", "write_file", "load_tool"},
+		CoreTools: []string{"read_file", "edit_file", "load_tool"},
 	}
 
 	assert.True(t, lazy.IsCoreTool("read_file"))
 	assert.True(t, lazy.IsCoreTool("READ_FILE"))
-	assert.True(t, lazy.IsCoreTool("  write_file  "))
+	assert.True(t, lazy.IsCoreTool("  edit_file  "))
 	assert.False(t, lazy.IsCoreTool("spi"))
-	assert.False(t, lazy.IsCoreTool("web_search"))
+	assert.False(t, lazy.IsCoreTool("web_fetch"))
+	assert.False(t, lazy.IsCoreTool(""))
+}
+
+func TestLazyLoadingConfig_EffectiveCoreToolsFallsBackToDefaults(t *testing.T) {
+	unset := LazyLoadingConfig{Enabled: true}
+	assert.Equal(t, DefaultLazyCoreTools, unset.EffectiveCoreTools())
+	assert.True(t, unset.IsCoreTool("read_file"))
+	assert.True(t, unset.IsCoreTool("web_search"))
+	assert.False(t, unset.IsCoreTool("write_file"))
+
+	explicit := LazyLoadingConfig{Enabled: true, CoreTools: []string{"message"}}
+	assert.Equal(t, []string{"message"}, explicit.EffectiveCoreTools())
+	assert.True(t, explicit.IsCoreTool("message"))
+	assert.False(t, explicit.IsCoreTool("read_file"))
 }

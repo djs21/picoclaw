@@ -77,12 +77,6 @@ var toolCatalog = []toolCatalogEntry{
 		ConfigKey:   "read_file",
 	},
 	{
-		Name:        "write_file",
-		Description: "Create or overwrite files within the writable workspace scope.",
-		Category:    "filesystem",
-		ConfigKey:   "write_file",
-	},
-	{
 		Name:        "list_dir",
 		Description: "Inspect directories and enumerate files available to the agent.",
 		Category:    "filesystem",
@@ -90,15 +84,9 @@ var toolCatalog = []toolCatalogEntry{
 	},
 	{
 		Name:        "edit_file",
-		Description: "Apply targeted edits to existing files without rewriting everything.",
+		Description: "Create, overwrite, append to, or patch files within the writable workspace scope.",
 		Category:    "filesystem",
 		ConfigKey:   "edit_file",
-	},
-	{
-		Name:        "append_file",
-		Description: "Append content to the end of an existing file.",
-		Category:    "filesystem",
-		ConfigKey:   "append_file",
 	},
 	{
 		Name:        "exec",
@@ -137,28 +125,17 @@ var toolCatalog = []toolCatalogEntry{
 		ConfigKey:   "send_file",
 	},
 	{
-		Name:        "find_skills",
-		Description: "Search external skill registries for installable skills.",
+		Name:        "skills",
+		Description: "Browse and install skills from the configured registries.",
 		Category:    "skills",
-		ConfigKey:   "find_skills",
+		ConfigKey:   "skills",
 	},
 	{
-		Name:        "install_skill",
-		Description: "Install a skill into the current workspace from a registry.",
-		Category:    "skills",
-		ConfigKey:   "install_skill",
-	},
-	{
-		Name:        "spawn",
-		Description: "Launch a background subagent for long-running or delegated work.",
-		Category:    "agents",
-		ConfigKey:   "spawn",
-	},
-	{
-		Name:        "spawn_status",
-		Description: "Query the status of spawned subagents.",
-		Category:    "agents",
-		ConfigKey:   "spawn_status",
+		Name: "spawn",
+		Description: "Delegate work to a subagent: spawn a background or synchronous " +
+			"task, or inspect spawned task status.",
+		Category:  "agents",
+		ConfigKey: "spawn",
 	},
 	{
 		Name:        "i2c",
@@ -234,16 +211,7 @@ func buildToolSupport(cfg *config.Config) []toolSupportItem {
 		reasonCode := ""
 
 		switch entry.Name {
-		case "find_skills", "install_skill":
-			if cfg.Tools.IsToolEnabled(entry.ConfigKey) {
-				if cfg.Tools.IsToolEnabled("skills") {
-					status = "enabled"
-				} else {
-					status = "blocked"
-					reasonCode = "requires_skills"
-				}
-			}
-		case "spawn", "spawn_status":
+		case "spawn":
 			if cfg.Tools.IsToolEnabled(entry.ConfigKey) {
 				if cfg.Tools.IsToolEnabled("subagent") {
 					status = "enabled"
@@ -309,14 +277,10 @@ func applyToolState(cfg *config.Config, toolName string, enabled bool) error {
 	switch toolName {
 	case "read_file":
 		cfg.Tools.ReadFile.Enabled = enabled
-	case "write_file":
-		cfg.Tools.WriteFile.Enabled = enabled
 	case "list_dir":
 		cfg.Tools.ListDir.Enabled = enabled
 	case "edit_file":
 		cfg.Tools.EditFile.Enabled = enabled
-	case "append_file":
-		cfg.Tools.AppendFile.Enabled = enabled
 	case "exec":
 		cfg.Tools.Exec.Enabled = enabled
 	case "cron":
@@ -329,27 +293,22 @@ func applyToolState(cfg *config.Config, toolName string, enabled bool) error {
 		cfg.Tools.Message.Enabled = enabled
 	case "send_file":
 		cfg.Tools.SendFile.Enabled = enabled
-	case "find_skills":
-		cfg.Tools.FindSkills.Enabled = enabled
-		if enabled {
-			cfg.Tools.Skills.Enabled = true
-		}
-	case "install_skill":
-		cfg.Tools.InstallSkill.Enabled = enabled
-		if enabled {
-			cfg.Tools.Skills.Enabled = true
-		}
+	case "skills":
+		cfg.Tools.Skills.Enabled = enabled
+	case "find_skills", "install_skill":
+		// Skills are installed through the CLI workflow now; these tools no
+		// longer exist as agent tools and cannot be toggled.
+		return fmt.Errorf("tool %q was removed", toolName)
 	case "spawn":
 		cfg.Tools.Spawn.Enabled = enabled
 		if enabled {
 			cfg.Tools.Subagent.Enabled = true
 		}
-	case "spawn_status":
-		cfg.Tools.SpawnStatus.Enabled = enabled
-		if enabled {
-			cfg.Tools.Spawn.Enabled = true
-			cfg.Tools.Subagent.Enabled = true
-		}
+	case "spawn_status", "subagent":
+		// spawn_status was folded into the unified spawn tool and subagent is
+		// an implicit runtime dependency of it, so neither is separately
+		// togglable from the tool catalog.
+		return fmt.Errorf("tool %q was consolidated into spawn", toolName)
 	case "i2c":
 		cfg.Tools.I2C.Enabled = enabled
 	case "spi":

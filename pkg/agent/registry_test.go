@@ -218,7 +218,7 @@ func TestNewAgentLoop_AgentToolAllowlistFiltersRuntimeTools(t *testing.T) {
 
 	researchWorkspace := setupWorkspace(t, map[string]string{
 		"AGENT.md": `---
-tools: [read_file, write_file, web_search, web_fetch, message]
+tools: [read_file, edit_file, web_search, web_fetch, message]
 skills: [deep-research]
 ---
 # Agent
@@ -237,7 +237,7 @@ Research agent.
 	})
 	cfg.Agents.Defaults.Workspace = mainWorkspace
 	cfg.Tools.ReadFile.Enabled = true
-	cfg.Tools.WriteFile.Enabled = true
+	cfg.Tools.EditFile.Enabled = true
 	cfg.Tools.ListDir.Enabled = true
 	cfg.Tools.Exec.Enabled = true
 	cfg.Tools.Message.Enabled = true
@@ -256,7 +256,7 @@ Research agent.
 	}
 
 	got := research.Tools.List()
-	want := []string{"message", "read_file", "web_fetch", "web_search", "write_file"}
+	want := []string{"edit_file", "message", "read_file", "web_fetch", "web_search"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("research tools = %v, want %v", got, want)
 	}

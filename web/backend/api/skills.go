@@ -175,7 +175,7 @@ func (h *Handler) handleSearchSkills(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load config: %v", loadErr), http.StatusInternalServerError)
 		return
 	}
-	if registryErr := ensureSkillRegistryToolEnabled(cfg, "find_skills"); registryErr != nil {
+	if registryErr := ensureSkillsRegistryEnabled(cfg); registryErr != nil {
 		http.Error(w, registryErr.Error(), http.StatusBadRequest)
 		return
 	}
@@ -288,7 +288,7 @@ func (h *Handler) handleInstallSkill(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load config: %v", loadErr), http.StatusInternalServerError)
 		return
 	}
-	if registryErr := ensureSkillRegistryToolEnabled(cfg, "install_skill"); registryErr != nil {
+	if registryErr := ensureSkillsRegistryEnabled(cfg); registryErr != nil {
 		http.Error(w, registryErr.Error(), http.StatusBadRequest)
 		return
 	}
@@ -530,12 +530,12 @@ func newSkillsRegistryManager(cfg *config.Config) *skills.RegistryManager {
 	return skills.NewRegistryManagerFromToolsConfig(cfg.Tools.Skills)
 }
 
-func ensureSkillRegistryToolEnabled(cfg *config.Config, toolName string) error {
+// ensureSkillsRegistryEnabled gates the marketplace registry endpoints on the
+// skills subsystem. find_skills and install_skill were removed as agent tools,
+// so the marketplace now talks to the registry directly.
+func ensureSkillsRegistryEnabled(cfg *config.Config) error {
 	if !cfg.Tools.IsToolEnabled("skills") {
 		return fmt.Errorf("tools.skills is disabled")
-	}
-	if !cfg.Tools.IsToolEnabled(toolName) {
-		return fmt.Errorf("%s is disabled", toolName)
 	}
 	return nil
 }

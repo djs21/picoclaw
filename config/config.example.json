@@ -432,20 +432,11 @@
       "max_age_minutes": 30,
       "interval_minutes": 5
     },
-    "append_file": {
-      "enabled": true
-    },
     "edit_file": {
-      "enabled": true
-    },
-    "find_skills": {
       "enabled": true
     },
     "i2c": {
       "enabled": false
-    },
-    "install_skill": {
-      "enabled": true
     },
     "list_dir": {
       "enabled": true
@@ -473,9 +464,6 @@
       "enabled": true
     },
     "web_fetch": {
-      "enabled": true
-    },
-    "write_file": {
       "enabled": true
     }
   },

@@ -181,10 +181,8 @@ Khi `restrict_to_workspace: true`, các công cụ sau được sandbox:
 | Công cụ       | Chức năng        | Giới hạn                               |
 | ------------- | ---------------- | -------------------------------------- |
 | `read_file`   | Đọc file         | Chỉ file trong workspace              |
-| `write_file`  | Ghi file         | Chỉ file trong workspace              |
 | `list_dir`    | Liệt kê thư mục | Chỉ thư mục trong workspace           |
-| `edit_file`   | Sửa file         | Chỉ file trong workspace              |
-| `append_file` | Nối vào file     | Chỉ file trong workspace              |
+| `edit_file`   | Tạo, sửa, nối, vá file | Chỉ file trong workspace        |
 | `exec`        | Thực thi lệnh   | Đường dẫn lệnh phải trong workspace   |
 
 #### Bảo Vệ Exec Bổ Sung

@@ -323,14 +323,7 @@ func DefaultConfig() *Config {
 				DefaultTTL:       3,
 				AutoIntercept:    true,
 				MaxSearchResults: 5,
-				CoreTools: []string{
-					"read_file",
-					"write_file",
-					"edit_file",
-					"append_file",
-					"list_dir",
-					"exec",
-				},
+				CoreTools:        append([]string(nil), DefaultLazyCoreTools...),
 			},
 			MediaCleanup: MediaCleanupConfig{
 				ToolConfig: ToolConfig{
@@ -440,20 +433,11 @@ func DefaultConfig() *Config {
 			SendTTS: ToolConfig{
 				Enabled: false,
 			},
-			AppendFile: ToolConfig{
-				Enabled: true,
-			},
 			EditFile: ToolConfig{
-				Enabled: true,
-			},
-			FindSkills: ToolConfig{
 				Enabled: true,
 			},
 			I2C: ToolConfig{
 				Enabled: false, // Hardware tool - Linux only
-			},
-			InstallSkill: ToolConfig{
-				Enabled: true,
 			},
 			ListDir: ToolConfig{
 				Enabled: true,
@@ -478,9 +462,6 @@ func DefaultConfig() *Config {
 			Spawn: ToolConfig{
 				Enabled: true,
 			},
-			SpawnStatus: ToolConfig{
-				Enabled: false,
-			},
 			SPI: ToolConfig{
 				Enabled: false, // Hardware tool - Linux only
 			},
@@ -488,9 +469,6 @@ func DefaultConfig() *Config {
 				Enabled: true,
 			},
 			WebFetch: ToolConfig{
-				Enabled: true,
-			},
-			WriteFile: ToolConfig{
 				Enabled: true,
 			},
 		},

@@ -147,25 +147,11 @@ func NewAgentInstance(
 			registerTool(tools.NewReadFileBytesTool(workspace, readRestrict, maxReadFileSize, allowReadPaths))
 		}
 	}
+	// edit_file is the single filesystem write surface: it creates files
+	// (create_if_missing / empty old_text), appends/replaces content, and edits
+	// existing text in place.
 	if cfg.Tools.IsToolEnabled("edit_file") {
 		registerTool(tools.NewEditFileTool(workspace, restrict, allowWritePaths))
-	}
-	if cfg.Tools.IsToolEnabled("append_file") {
-		registerTool(tools.NewAppendFileTool(workspace, restrict, allowWritePaths))
-	}
-	// Build write_file's copy from the registered editors so it steers the agent
-	// to edit_file/append_file only when those tools are actually available.
-	if cfg.Tools.IsToolEnabled("write_file") {
-		writeTool := tools.NewWriteFileTool(workspace, restrict, allowWritePaths)
-		var altTools []string
-		if toolsRegistry.HasRegistered("append_file") {
-			altTools = append(altTools, "append_file")
-		}
-		if toolsRegistry.HasRegistered("edit_file") {
-			altTools = append(altTools, "edit_file")
-		}
-		writeTool.SetAlternativeTools(altTools)
-		registerTool(writeTool)
 	}
 	if cfg.Tools.IsToolEnabled("list_dir") {
 		registerTool(tools.NewListDirTool(workspace, readRestrict, allowReadPaths))

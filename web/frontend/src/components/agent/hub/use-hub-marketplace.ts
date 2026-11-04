@@ -41,14 +41,10 @@ export function useHubMarketplace() {
     queryFn: getTools,
   })
 
-  const findSkillsTool = toolsData?.tools.find(
-    (tool) => tool.name === "find_skills",
-  )
-  const installSkillTool = toolsData?.tools.find(
-    (tool) => tool.name === "install_skill",
-  )
-  const canSearchMarketplace = findSkillsTool?.status === "enabled"
-  const canInstallFromMarketplace = installSkillTool?.status === "enabled"
+  const skillsTool = toolsData?.tools.find((tool) => tool.name === "skills")
+  const canSearchMarketplace = skillsTool?.status === "enabled"
+  // Registry search and install share the same `skills` subsystem gate.
+  const canInstallFromMarketplace = canSearchMarketplace
   const hasSubmittedQuery = submittedMarketQuery.trim() !== ""
   const isMarketSearchActive = canSearchMarketplace && hasSubmittedQuery
 
@@ -119,8 +115,7 @@ export function useHubMarketplace() {
       : null
 
   const unavailableToolMessages = buildUnavailableToolMessages({
-    searchTool: findSkillsTool,
-    installTool: installSkillTool,
+    skillsTool,
     t,
   })
 

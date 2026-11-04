@@ -130,7 +130,7 @@ Se `tools` è omesso nel frontmatter, l'agent riceve il normale set globale dei 
 ---
 name: Research Agent
 description: Specialista per ricerca web e analisi approfondita.
-tools: [read_file, write_file, web_search, web_fetch, message]
+tools: [read_file, edit_file, web_search, web_fetch, message]
 skills: [deep-research]
 mcpServers: [web-index]
 ---
@@ -212,10 +212,8 @@ Quando `restrict_to_workspace: true`, i seguenti strumenti sono in sandbox:
 | Strumento     | Funzione                  | Restrizione                                          |
 | ------------- | ------------------------- | ---------------------------------------------------- |
 | `read_file`   | Legge file                | Solo file all'interno del workspace                  |
-| `write_file`  | Scrive file               | Solo file all'interno del workspace                  |
 | `list_dir`    | Elenca directory          | Solo directory all'interno del workspace             |
-| `edit_file`   | Modifica file             | Solo file all'interno del workspace                  |
-| `append_file` | Aggiunge ai file          | Solo file all'interno del workspace                  |
+| `edit_file`   | Crea, modifica, accoda, applica patch | Solo file all'interno del workspace       |
 | `exec`        | Esegue comandi            | I percorsi dei comandi devono essere nel workspace   |
 
 #### Protezione Exec Aggiuntiva

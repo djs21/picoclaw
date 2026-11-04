@@ -122,8 +122,8 @@ Tools can have **irreversible side effects**. If the user says "no, wait" while 
 | Tool batch | Steering message | With skip | Without skip |
 |---|---|---|---|
 | `[web_search, send_email]` | "don't send it" | Email **not** sent | Email sent, damage done |
-| `[query_db, write_file, spawn_agent]` | "use another database" | Only the query runs | File written + subagent spawned, all wasted |
-| `[search₁, search₂, search₃, write_file]` | user changes topic entirely | 1 search | 3 searches + file write, all irrelevant |
+| `[query_db, edit_file, spawn_agent]` | "use another database" | Only the query runs | File written + subagent spawned, all wasted |
+| `[search₁, search₂, search₃, edit_file]` | user changes topic entirely | 1 search | 3 searches + file write, all irrelevant |
 
 ### Avoiding wasted time
 
@@ -154,13 +154,13 @@ This is saved to the session via `AddFullMessage` and sent to the model, so it i
 ```
 1. User: "search for info on X, write a file, and send me a message"
 
-2. LLM responds with 3 tool calls: [web_search, write_file, message]
+2. LLM responds with 3 tool calls: [web_search, edit_file, message]
 
 3. web_search is executed → result saved
 
 4. [polling] → User called Steer("no, search for Y instead")
 
-5. write_file is skipped → "Skipped due to queued user message."
+5. edit_file is skipped → "Skipped due to queued user message."
    message is skipped    → "Skipped due to queued user message."
 
 6. Message "search for Y instead" injected into context

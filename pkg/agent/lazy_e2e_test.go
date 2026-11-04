@@ -26,8 +26,6 @@ func TestLazyLoading_E2E_TokenEfficiencyAndAutoPromotion(t *testing.T) {
 	cfgEager.Agents.Defaults.Workspace = tmpDir
 	cfgEager.Tools.LazyLoading.Enabled = false
 	cfgEager.Tools.ReadFile.Enabled = true
-	cfgEager.Tools.WriteFile.Enabled = true
-	cfgEager.Tools.AppendFile.Enabled = true
 	cfgEager.Tools.EditFile.Enabled = true
 	cfgEager.Tools.ListDir.Enabled = true
 
@@ -49,8 +47,6 @@ func TestLazyLoading_E2E_TokenEfficiencyAndAutoPromotion(t *testing.T) {
 	// Only read_file and load_tool are core tools
 	cfgLazy.Tools.LazyLoading.CoreTools = []string{"read_file", "load_tool"}
 	cfgLazy.Tools.ReadFile.Enabled = true
-	cfgLazy.Tools.WriteFile.Enabled = true
-	cfgLazy.Tools.AppendFile.Enabled = true
 	cfgLazy.Tools.EditFile.Enabled = true
 	cfgLazy.Tools.ListDir.Enabled = true
 
@@ -69,35 +65,35 @@ func TestLazyLoading_E2E_TokenEfficiencyAndAutoPromotion(t *testing.T) {
 	t.Logf("Schema size reduction: %.2f%%", reductionPercent)
 	assert.Greater(t, reductionPercent, 25.0, "Expected >25% reduction in tool definition payload")
 
-	// 3. Test Auto-Intercept Promotion of a deferred tool (write_file)
-	writeEntry, exists := agentLazy.Tools.GetEntry("write_file")
+	// 3. Test Auto-Intercept Promotion of a deferred tool (edit_file)
+	editEntry, exists := agentLazy.Tools.GetEntry("edit_file")
 	require.True(t, exists)
-	assert.False(t, writeEntry.IsCore)
-	assert.Equal(t, 0, writeEntry.TTL)
+	assert.False(t, editEntry.IsCore)
+	assert.Equal(t, 0, editEntry.TTL)
 
-	// write_file shouldn't be in provider defs yet
-	_, callableBefore := agentLazy.Tools.Get("write_file")
+	// edit_file shouldn't be in provider defs yet
+	_, callableBefore := agentLazy.Tools.Get("edit_file")
 	assert.False(t, callableBefore)
 
 	// Calling the deferred tool via Execute should auto-promote it
 	ctx := context.Background()
-	res := agentLazy.Tools.Execute(ctx, "write_file", map[string]any{
-		"path":    "hello.txt",
-		"content": "hello world",
+	res := agentLazy.Tools.Execute(ctx, "edit_file", map[string]any{
+		"path":     "hello.txt",
+		"new_text": "hello world",
 	})
 	require.NotNil(t, res)
 	assert.False(t, res.IsError)
 
-	// After auto-promotion, write_file should have active TTL and appear in ToProviderDefs()
-	writeEntryAfter, _ := agentLazy.Tools.GetEntry("write_file")
-	assert.Greater(t, writeEntryAfter.TTL, 0)
-	_, callableAfter := agentLazy.Tools.Get("write_file")
+	// After auto-promotion, edit_file should have active TTL and appear in ToProviderDefs()
+	editEntryAfter, _ := agentLazy.Tools.GetEntry("edit_file")
+	assert.Greater(t, editEntryAfter.TTL, 0)
+	_, callableAfter := agentLazy.Tools.Get("edit_file")
 	assert.True(t, callableAfter)
 
 	activeDefs := agentLazy.Tools.ToProviderDefs()
 	var foundInActive bool
 	for _, def := range activeDefs {
-		if def.Function.Name == "write_file" {
+		if def.Function.Name == "edit_file" {
 			foundInActive = true
 			break
 		}
@@ -106,10 +102,10 @@ func TestLazyLoading_E2E_TokenEfficiencyAndAutoPromotion(t *testing.T) {
 
 	// Step turn (decrements TTL via TickTTL)
 	agentLazy.Tools.TickTTL() // TTL decreases: 2 -> 1
-	_, callableTick1 := agentLazy.Tools.Get("write_file")
+	_, callableTick1 := agentLazy.Tools.Get("edit_file")
 	assert.True(t, callableTick1)
 
 	agentLazy.Tools.TickTTL() // TTL decreases: 1 -> 0, demoted!
-	_, callableTick2 := agentLazy.Tools.Get("write_file")
+	_, callableTick2 := agentLazy.Tools.Get("edit_file")
 	assert.False(t, callableTick2, "Tool should be demoted after TTL expires")
 }

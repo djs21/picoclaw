@@ -180,10 +180,8 @@ Lorsque `restrict_to_workspace: true`, les outils suivants sont sandboxés :
 | Outil         | Fonction              | Restriction                                    |
 | ------------- | --------------------- | ---------------------------------------------- |
 | `read_file`   | Lire des fichiers     | Uniquement les fichiers dans le workspace      |
-| `write_file`  | Écrire des fichiers   | Uniquement les fichiers dans le workspace      |
 | `list_dir`    | Lister les répertoires| Uniquement les répertoires dans le workspace   |
-| `edit_file`   | Modifier des fichiers | Uniquement les fichiers dans le workspace      |
-| `append_file` | Ajouter aux fichiers  | Uniquement les fichiers dans le workspace      |
+| `edit_file`   | Créer, modifier, ajouter, patcher | Uniquement les fichiers dans le workspace |
 | `exec`        | Exécuter des commandes| Les chemins de commande doivent être dans le workspace |
 
 #### Protection Exec Supplémentaire

@@ -225,22 +225,22 @@ Important activation rules:
 
 | Family | Runtime tool names | What they provide |
 | --- | --- | --- |
-| Filesystem | `read_file`, `write_file`, `list_dir`, `edit_file`, `append_file` | Read, write, list, and patch workspace files |
+| Filesystem | `read_file`, `list_dir`, `edit_file` | Read, create, list, and patch workspace files |
 | Web | `web_search`, `web_fetch` | Search the web and fetch readable page content |
 | Command execution | `exec` | Shell command execution with deny-pattern guardrails |
 | Scheduling | `cron` | Scheduled jobs, reminders, recurring tasks, and command jobs |
-| Skills registry | `find_skills`, `install_skill` | Search and install skills from configured registries |
+| Skills registry | `skills` (CLI/WebUI only) | Browse and install skills from configured registries |
 | MCP | `mcp_<server>_<tool>` | Tools contributed by connected MCP servers |
 | MCP discovery | `tool_search_tool_bm25`, `tool_search_tool_regex` | Discover deferred hidden MCP tools on demand |
 | Hardware | `i2c`, `spi`, `serial` | Hardware access for supported devices and boards |
 | Messaging | `message`, `reaction` | Send outbound messages and reactions through channel integrations |
 | Media | `send_file`, `load_image`, `send_tts` | Send files, load local images into context, generate TTS output |
-| Subagents | `spawn`, `subagent`, `spawn_status`, `delegate` | Background tasks, synchronous sub-turns, task status, multi-agent delegation |
+| Subagents | `spawn`, `delegate` | Background tasks, synchronous sub-turns, task status, multi-agent delegation |
 
 ### Tool Registration Notes
 
 - `send_tts` is registered only when a TTS provider is available.
-- `spawn` and `spawn_status` require `subagent` support to be enabled.
+- `spawn` requires `subagent` support to be enabled in `tools.subagent`.
 - `delegate` is auto-registered only when more than one agent exists.
 - MCP discovery tools are relevant only when deferred MCP discovery is enabled.
 - `message` can be configured for outbound media as well as plain text.
@@ -253,19 +253,19 @@ PicoClaw has a first-class subagent model for long-running work, isolated subpro
 
 The core idea is:
 
-- use `spawn` for background work that should continue without blocking the current turn
-- use `subagent` for an isolated synchronous sub-task when the parent needs the result now
+- use `spawn(task="...", sync=false)` (or default) for background work that should continue without blocking the current turn
+- use `spawn(task="...", sync=true)` for an isolated synchronous sub-task when the parent needs the result immediately
 - use `delegate` to hand a task to a specific peer agent with its own identity, model, workspace, and tools
-- use `spawn_status` or `/subagents` to inspect what is currently running
+- use `spawn(action="status", task_id="...")` or `spawn(action="list")` (or `/subagents`) to inspect what is currently running
 
 ### Choosing the Right Subagent Tool
 
 | Tool | Execution style | Best use |
 | --- | --- | --- |
-| `spawn` | Async background task | Web research, API polling, long scans, work that can report back later |
-| `subagent` | Sync isolated sub-turn | Focused analysis, transformation, or verification that must return before the parent continues |
+| `spawn` (`sync=false`) | Async background task | Web research, API polling, long scans, work that can report back later |
+| `spawn` (`sync=true`) | Sync isolated sub-turn | Focused analysis, transformation, or verification that must return before the parent continues |
+| `spawn` (`action="status"|"list"`) | Inspection/status only | Check running, completed, failed, or canceled spawned tasks |
 | `delegate` | Sync handoff to named peer agent | Work that should run as a specialized agent rather than as a generic child turn |
-| `spawn_status` | Inspection/status only | Check running, completed, failed, or canceled spawned tasks |
 
 ### Specialized Peer Agents
 
@@ -326,10 +326,10 @@ In practice, this is what makes targeted `spawn(..., agent_id="research")` or `d
 Subagent execution semantics that matter:
 
 - subagents run in isolated ephemeral session history, so their reasoning and intermediate steps do not pollute the parent conversation
-- `spawn` returns immediately and launches background work in a goroutine
-- `subagent` waits for completion and returns the result directly
+- `spawn(sync=false)` returns immediately and launches background work in a goroutine
+- `spawn(sync=true)` waits for completion and returns the result directly
 - `delegate` is synchronous and runs as the target peer agent instead of a generic child task
-- `spawn_status` is scoped to the current conversation when channel/chat context exists
+- `spawn(action="status")` and `spawn(action="list")` are scoped to the current conversation when channel/chat context exists
 - all subagents still share the same workspace security boundary; they do not bypass sandbox or path restrictions
 
 Runtime limits and lifecycle rules:
@@ -342,13 +342,13 @@ Runtime limits and lifecycle rules:
 
 ### Practical Patterns
 
-Use `spawn` when:
+Use `spawn(sync=false)` (or default) when:
 
 - the task will take a while
 - the result can arrive later
 - the current turn should keep moving
 
-Use `subagent` when:
+Use `spawn(sync=true)` when:
 
 - you need isolation from the parent context
 - you want an independent attempt at a bounded subproblem
@@ -375,8 +375,9 @@ spawn(
 Synchronous isolated check:
 
 ```text
-subagent(
-  task="Review this config for risky tool exposure and return only the concrete findings."
+spawn(
+  task="Review this config for risky tool exposure and return only the concrete findings.",
+  sync=true
 )
 ```
 
@@ -393,7 +394,7 @@ delegate(
 
 For live visibility:
 
-- call `spawn_status` to inspect one task or list visible tasks in the current conversation
+- call `spawn(action="status", task_id="<id>")` or `spawn(action="list")` to inspect visible tasks in the current conversation
 - use `/subagents` in chat channels to show the active subagent tree for the current session
 
 ## Voice, Transcription, and TTS

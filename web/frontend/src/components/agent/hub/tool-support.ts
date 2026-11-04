@@ -7,39 +7,33 @@ type MarketplaceTool =
   | undefined
 
 export interface UnavailableToolMessage {
-  key: "search" | "install"
+  key: "skills"
   label: string
   message: string
 }
 
+// buildUnavailableToolMessages explains why the marketplace is unavailable.
+// Skill registry access is gated by the `skills` subsystem alone now that the
+// find_skills and install_skill agent tools were removed, so at most one
+// message is returned.
 export function buildUnavailableToolMessages({
-  searchTool,
-  installTool,
+  skillsTool,
   t,
 }: {
-  searchTool: MarketplaceTool
-  installTool: MarketplaceTool
+  skillsTool: MarketplaceTool
   t: TFunction
 }): UnavailableToolMessage[] {
-  const searchMessage = getToolSupportMessage(searchTool, t)
-  const installMessage = getToolSupportMessage(installTool, t)
-
+  const message = getToolSupportMessage(skillsTool, t)
+  if (!message) {
+    return []
+  }
   return [
-    searchMessage
-      ? {
-          key: "search",
-          label: t("pages.agent.skills.marketplace_search_status"),
-          message: searchMessage,
-        }
-      : null,
-    installMessage
-      ? {
-          key: "install",
-          label: t("pages.agent.skills.marketplace_install_status"),
-          message: installMessage,
-        }
-      : null,
-  ].filter((item): item is UnavailableToolMessage => Boolean(item))
+    {
+      key: "skills",
+      label: t("pages.agent.skills.marketplace_search_status"),
+      message,
+    },
+  ]
 }
 
 function getToolSupportMessage(

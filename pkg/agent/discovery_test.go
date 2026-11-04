@@ -165,7 +165,7 @@ Handle restricted work.
 		{ID: "restricted", Workspace: restrictedWorkspace},
 	})
 	cfg.Tools.ReadFile.Enabled = true
-	cfg.Tools.WriteFile.Enabled = true
+	cfg.Tools.EditFile.Enabled = true
 	cfg.Tools.Spawn.Enabled = true
 	cfg.Tools.Subagent.Enabled = true
 

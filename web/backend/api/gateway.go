@@ -436,17 +436,11 @@ func computeConfigSignature(cfg *config.Config) string {
 	if cfg.Tools.ReadFile.Enabled {
 		toolSignatures = append(toolSignatures, "read_file")
 	}
-	if cfg.Tools.WriteFile.Enabled {
-		toolSignatures = append(toolSignatures, "write_file")
-	}
 	if cfg.Tools.ListDir.Enabled {
 		toolSignatures = append(toolSignatures, "list_dir")
 	}
 	if cfg.Tools.EditFile.Enabled {
 		toolSignatures = append(toolSignatures, "edit_file")
-	}
-	if cfg.Tools.AppendFile.Enabled {
-		toolSignatures = append(toolSignatures, "append_file")
 	}
 	if cfg.Tools.Exec.Enabled {
 		toolSignatures = append(toolSignatures, "exec")
@@ -470,17 +464,10 @@ func computeConfigSignature(cfg *config.Config) string {
 	if cfg.Tools.SendFile.Enabled {
 		toolSignatures = append(toolSignatures, "send_file")
 	}
-	if cfg.Tools.FindSkills.Enabled {
-		toolSignatures = append(toolSignatures, "find_skills")
-	}
-	if cfg.Tools.InstallSkill.Enabled {
-		toolSignatures = append(toolSignatures, "install_skill")
-	}
+	// spawn_status was folded into the unified spawn tool, so a single flag
+	// now controls the tool signature.
 	if cfg.Tools.Spawn.Enabled {
 		toolSignatures = append(toolSignatures, "spawn")
-	}
-	if cfg.Tools.SpawnStatus.Enabled {
-		toolSignatures = append(toolSignatures, "spawn_status")
 	}
 	if cfg.Tools.I2C.Enabled {
 		toolSignatures = append(toolSignatures, "i2c")

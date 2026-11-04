@@ -1115,11 +1115,8 @@ type ToolsConfig struct {
 	Skills          SkillsToolsConfig  `json:"skills"            yaml:"skills,omitempty"`
 	MediaCleanup    MediaCleanupConfig `json:"media_cleanup"     yaml:"-"`
 	LazyLoading     LazyLoadingConfig  `json:"lazy_loading"      yaml:"lazy_loading,omitempty"`
-	AppendFile      ToolConfig         `json:"append_file"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_APPEND_FILE_"`
 	EditFile        ToolConfig         `json:"edit_file"         yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_EDIT_FILE_"`
-	FindSkills      ToolConfig         `json:"find_skills"       yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_FIND_SKILLS_"`
 	I2C             ToolConfig         `json:"i2c"               yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_I2C_"`
-	InstallSkill    ToolConfig         `json:"install_skill"     yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_INSTALL_SKILL_"`
 	ListDir         ToolConfig         `json:"list_dir"          yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_LIST_DIR_"`
 	LoadImage       ToolConfig         `json:"load_image"        yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_LOAD_IMAGE_"`
 	Message         MessageToolsConfig `json:"message"           yaml:"-"`
@@ -1128,11 +1125,9 @@ type ToolsConfig struct {
 	SendFile        ToolConfig         `json:"send_file"         yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SEND_FILE_"`
 	SendTTS         ToolConfig         `json:"send_tts"          yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SEND_TTS_"`
 	Spawn           ToolConfig         `json:"spawn"             yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SPAWN_"`
-	SpawnStatus     ToolConfig         `json:"spawn_status"      yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SPAWN_STATUS_"`
 	SPI             ToolConfig         `json:"spi"               yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SPI_"`
 	Subagent        ToolConfig         `json:"subagent"          yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_SUBAGENT_"`
 	WebFetch        ToolConfig         `json:"web_fetch"         yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_WEB_FETCH_"`
-	WriteFile       ToolConfig         `json:"write_file"        yaml:"-"                                                       envPrefix:"PICOCLAW_TOOLS_WRITE_FILE_"`
 }
 
 // IsFilterSensitiveDataEnabled returns true if sensitive data filtering is enabled
@@ -1150,13 +1145,32 @@ type LazyLoadingConfig struct {
 	CoreTools        []string `json:"core_tools"         yaml:"core_tools"`
 }
 
+// DefaultLazyCoreTools is the fallback core tool set used when
+// tools.lazy_loading.core_tools is empty. A core tool is always exposed to the
+// model; every other tool is registered as deferred and discovered on demand.
+var DefaultLazyCoreTools = []string{
+	"read_file",
+	"edit_file",
+	"exec",
+	"web_search",
+}
+
+// EffectiveCoreTools returns the configured core tools, falling back to
+// DefaultLazyCoreTools when the list is unset or empty.
+func (c *LazyLoadingConfig) EffectiveCoreTools() []string {
+	if c == nil || len(c.CoreTools) == 0 {
+		return DefaultLazyCoreTools
+	}
+	return c.CoreTools
+}
+
 // IsCoreTool checks if a given tool name is designated as a Core Tool.
 func (c *LazyLoadingConfig) IsCoreTool(name string) bool {
-	if c == nil || len(c.CoreTools) == 0 {
+	target := strings.ToLower(strings.TrimSpace(name))
+	if target == "" {
 		return false
 	}
-	target := strings.ToLower(strings.TrimSpace(name))
-	for _, ct := range c.CoreTools {
+	for _, ct := range c.EffectiveCoreTools() {
 		if strings.ToLower(strings.TrimSpace(ct)) == target {
 			return true
 		}
@@ -1840,16 +1854,10 @@ func (t *ToolsConfig) IsToolEnabled(name string) bool {
 		return t.Skills.Enabled
 	case "media_cleanup":
 		return t.MediaCleanup.Enabled
-	case "append_file":
-		return t.AppendFile.Enabled
 	case "edit_file":
 		return t.EditFile.Enabled
-	case "find_skills":
-		return t.FindSkills.Enabled
 	case "i2c":
 		return t.I2C.Enabled
-	case "install_skill":
-		return t.InstallSkill.Enabled
 	case "list_dir":
 		return t.ListDir.Enabled
 	case "load_image":
@@ -1862,8 +1870,6 @@ func (t *ToolsConfig) IsToolEnabled(name string) bool {
 		return t.Serial.Enabled
 	case "spawn":
 		return t.Spawn.Enabled
-	case "spawn_status":
-		return t.SpawnStatus.Enabled
 	case "spi":
 		return t.SPI.Enabled
 	case "subagent":
@@ -1874,8 +1880,6 @@ func (t *ToolsConfig) IsToolEnabled(name string) bool {
 		return t.SendFile.Enabled
 	case "send_tts":
 		return t.SendTTS.Enabled
-	case "write_file":
-		return t.WriteFile.Enabled
 	default:
 		return true
 	}

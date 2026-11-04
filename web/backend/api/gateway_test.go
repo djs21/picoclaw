@@ -1307,7 +1307,7 @@ func TestGatewayStatusRequiresRestartAfterToolChange(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Agents.Defaults.ModelName = cfg.ModelList[0].ModelName
 	cfg.ModelList[0].SetAPIKey("test-key")
-	cfg.Tools.WriteFile.Enabled = true
+	cfg.Tools.EditFile.Enabled = true
 	if err := config.SaveConfig(configPath, cfg); err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
 	}
@@ -1333,7 +1333,7 @@ func TestGatewayStatusRequiresRestartAfterToolChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
-	updatedCfg.Tools.WriteFile.Enabled = false
+	updatedCfg.Tools.EditFile.Enabled = false
 	if err := config.SaveConfig(configPath, updatedCfg); err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
 	}
