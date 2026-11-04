@@ -307,6 +307,56 @@ as containers, VMs, or an approval flow around build-and-run commands.
 }
 ```
 
+## Lazy Tool Loading
+
+Lazy loading keeps the LLM context small when many tools are registered. Only **core tools** are exposed up front. Every other tool is registered as hidden (deferred) and must be discovered on demand.
+
+This is separate from MCP `discovery` below, which only affects MCP server tools. `tools.lazy_loading` affects the built-in agent tools (`read_file`, `edit_file`, `exec`, `web_search`, `web_fetch`, `message`, `reaction`, `list_dir`, `load_image`, `spawn`, `cron`, `delegate`, etc.).
+
+| Config | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable lazy loading for built-in tools |
+| `mode` | string | `"hybrid"` | Loading mode |
+| `default_ttl` | int | `3` | Number of turns a promoted deferred tool stays visible |
+| `auto_intercept` | bool | `true` | If the model calls a hidden tool directly, auto-promote it with `default_ttl` |
+| `max_search_results` | int | `5` | Max results returned by `tool_search_tool_regex` |
+| `core_tools` | string[] | `["read_file", "edit_file", "exec", "web_search"]` | Tools always exposed. Empty falls back to this default |
+
+### Always-active tools
+
+When `lazy_loading.enabled=true`, these tools are always active (core) regardless of `core_tools`:
+
+- `load_tool` — promote deferred tools by name with a TTL
+- `tool_search_tool_regex` — search deferred tools by regex pattern
+
+They are wired in `pkg/agent/instance.go` via `tools.NewLoadTool` and `tools.NewRegexSearchTool`, and `LazyLoadingConfig.IsCoreTool` in `pkg/config/config.go` treats them as core so `RegisterTool` / `agent_init.go` never hide them.
+
+Per-agent allowlists (`SetAllowlist`) still apply to hidden tools, but discovery tools bypass the allowlist in `ToolRegistry.toolAllowedLocked` so deferred tools can always be unlocked.
+
+### How it works
+
+1. Core tools go through `ToolRegistry.Register` (`IsCore=true`, no TTL).
+2. Non-core tools go through `RegisterHidden` (`IsCore=false`, `TTL=0`, not callable, not in `GetDefinitions`).
+3. A compact manifest of deferred tools is injected into the system prompt (`ContextBuilder` with `SnapshotManifest`).
+4. The model calls `tool_search_tool_regex` or `load_tool` to promote tools. `PromoteTools` sets their TTL.
+5. Each turn `TickTTL` decrements non-core TTLs. Expired tools disappear from definitions until re-promoted.
+6. If `auto_intercept=true`, a direct call to a hidden tool auto-promotes it (`AutoPromote`).
+
+```json
+{
+  "tools": {
+    "lazy_loading": {
+      "enabled": true,
+      "mode": "hybrid",
+      "default_ttl": 3,
+      "auto_intercept": true,
+      "max_search_results": 5,
+      "core_tools": ["read_file", "edit_file", "exec", "web_search"]
+    }
+  }
+}
+```
+
 ## Cron Tool
 
 The cron tool is used for scheduling periodic tasks.

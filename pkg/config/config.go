@@ -1162,10 +1162,16 @@ func (c *LazyLoadingConfig) EffectiveCoreTools() []string {
 }
 
 // IsCoreTool checks if a given tool name is designated as a Core Tool.
+// Discovery tools (load_tool, tool_search_tool_regex, tool_search_tool_bm25)
+// are always considered core so deferred tools can still be unlocked.
 func (c *LazyLoadingConfig) IsCoreTool(name string) bool {
 	target := strings.ToLower(strings.TrimSpace(name))
 	if target == "" {
 		return false
+	}
+	switch target {
+	case "load_tool", "tool_search_tool_regex", "tool_search_tool_bm25":
+		return true
 	}
 	for _, ct := range c.EffectiveCoreTools() {
 		if strings.ToLower(strings.TrimSpace(ct)) == target {

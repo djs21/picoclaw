@@ -318,6 +318,14 @@
   "tools": {
     "allow_read_paths": null,
     "allow_write_paths": null,
+    "lazy_loading": {
+      "enabled": false,
+      "mode": "hybrid",
+      "default_ttl": 3,
+      "auto_intercept": true,
+      "max_search_results": 5,
+      "core_tools": ["read_file", "edit_file", "exec", "web_search"]
+    },
     "web": {
       "enabled": true,
       "prefer_native": true,
