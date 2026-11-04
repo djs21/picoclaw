@@ -12,9 +12,14 @@ import (
 
 func (al *AgentLoop) RegisterTool(tool tools.Tool) {
 	registry := al.GetRegistry()
+	lazyCfg := al.cfg.Tools.LazyLoading
 	for _, agentID := range registry.ListAgentIDs() {
 		if agent, ok := registry.GetAgent(agentID); ok {
-			agent.Tools.Register(tool)
+			if lazyCfg.Enabled && !lazyCfg.IsCoreTool(tool.Name()) {
+				agent.Tools.RegisterHidden(tool)
+			} else {
+				agent.Tools.Register(tool)
+			}
 		}
 	}
 }

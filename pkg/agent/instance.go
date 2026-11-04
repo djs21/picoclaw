@@ -118,20 +118,40 @@ func NewAgentInstance(
 	toolsRegistry := tools.NewToolRegistry()
 	toolsRegistry.SetAllowlist(agentToolAllowlist)
 
+	lazyCfg := cfg.Tools.LazyLoading
+	registerTool := func(t tools.Tool) {
+		if lazyCfg.Enabled && !lazyCfg.IsCoreTool(t.Name()) {
+			toolsRegistry.RegisterHidden(t)
+		} else {
+			toolsRegistry.Register(t)
+		}
+	}
+
+	if lazyCfg.Enabled {
+		ttl := lazyCfg.DefaultTTL
+		if ttl <= 0 {
+			ttl = 3
+		}
+		toolsRegistry.SetAutoIntercept(lazyCfg.AutoIntercept, ttl)
+		// Register discovery/promotion tools as core
+		toolsRegistry.Register(tools.NewLoadTool(toolsRegistry, ttl))
+		toolsRegistry.Register(tools.NewRegexSearchTool(toolsRegistry, ttl, lazyCfg.MaxSearchResults))
+	}
+
 	if cfg.Tools.IsToolEnabled("read_file") {
 		maxReadFileSize := cfg.Tools.ReadFile.MaxReadFileSize
 		switch cfg.Tools.ReadFile.EffectiveMode() {
 		case config.ReadFileModeLines:
-			toolsRegistry.Register(tools.NewReadFileLinesTool(workspace, readRestrict, maxReadFileSize, allowReadPaths))
+			registerTool(tools.NewReadFileLinesTool(workspace, readRestrict, maxReadFileSize, allowReadPaths))
 		default:
-			toolsRegistry.Register(tools.NewReadFileBytesTool(workspace, readRestrict, maxReadFileSize, allowReadPaths))
+			registerTool(tools.NewReadFileBytesTool(workspace, readRestrict, maxReadFileSize, allowReadPaths))
 		}
 	}
 	if cfg.Tools.IsToolEnabled("edit_file") {
-		toolsRegistry.Register(tools.NewEditFileTool(workspace, restrict, allowWritePaths))
+		registerTool(tools.NewEditFileTool(workspace, restrict, allowWritePaths))
 	}
 	if cfg.Tools.IsToolEnabled("append_file") {
-		toolsRegistry.Register(tools.NewAppendFileTool(workspace, restrict, allowWritePaths))
+		registerTool(tools.NewAppendFileTool(workspace, restrict, allowWritePaths))
 	}
 	// Build write_file's copy from the registered editors so it steers the agent
 	// to edit_file/append_file only when those tools are actually available.
@@ -145,10 +165,10 @@ func NewAgentInstance(
 			altTools = append(altTools, "edit_file")
 		}
 		writeTool.SetAlternativeTools(altTools)
-		toolsRegistry.Register(writeTool)
+		registerTool(writeTool)
 	}
 	if cfg.Tools.IsToolEnabled("list_dir") {
-		toolsRegistry.Register(tools.NewListDirTool(workspace, readRestrict, allowReadPaths))
+		registerTool(tools.NewListDirTool(workspace, readRestrict, allowReadPaths))
 	}
 	if cfg.Tools.IsToolEnabled("exec") {
 		execTool, err := tools.NewExecToolWithConfig(workspace, restrict, cfg, allowReadPaths)
@@ -156,7 +176,7 @@ func NewAgentInstance(
 			logger.ErrorCF("agent", "Failed to initialize exec tool; continuing without exec",
 				map[string]any{"error": err.Error()})
 		} else {
-			toolsRegistry.Register(execTool)
+			registerTool(execTool)
 		}
 	}
 
@@ -165,6 +185,12 @@ func NewAgentInstance(
 
 	contextBuilder := NewContextBuilder(workspace).
 		WithSplitOnMarker(cfg.Agents.Defaults.SplitOnMarker)
+
+	if lazyCfg.Enabled {
+		contextBuilder = contextBuilder.WithLazyToolManifest(func() []tools.ToolManifestDoc {
+			return toolsRegistry.SnapshotManifest()
+		})
+	}
 
 	agentID := routing.DefaultAgentID
 	agentName := ""

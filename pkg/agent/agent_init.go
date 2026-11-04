@@ -127,12 +127,21 @@ func registerSharedTools(
 			continue
 		}
 
+		lazyCfg := cfg.Tools.LazyLoading
+		regTool := func(t tools.Tool) {
+			if lazyCfg.Enabled && !lazyCfg.IsCoreTool(t.Name()) {
+				agent.Tools.RegisterHidden(t)
+			} else {
+				agent.Tools.Register(t)
+			}
+		}
+
 		if cfg.Tools.IsToolEnabled("web") {
 			searchTool, err := tools.NewWebSearchTool(tools.WebSearchToolOptionsFromConfig(cfg))
 			if err != nil {
 				logger.ErrorCF("agent", "Failed to create web search tool", map[string]any{"error": err.Error()})
 			} else if searchTool != nil {
-				agent.Tools.Register(searchTool)
+				regTool(searchTool)
 			}
 		}
 		if cfg.Tools.IsToolEnabled("web_fetch") {
@@ -145,19 +154,19 @@ func registerSharedTools(
 			if err != nil {
 				logger.ErrorCF("agent", "Failed to create web fetch tool", map[string]any{"error": err.Error()})
 			} else {
-				agent.Tools.Register(fetchTool)
+				regTool(fetchTool)
 			}
 		}
 
 		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms
 		if cfg.Tools.IsToolEnabled("i2c") {
-			agent.Tools.Register(tools.NewI2CTool())
+			regTool(tools.NewI2CTool())
 		}
 		if cfg.Tools.IsToolEnabled("spi") {
-			agent.Tools.Register(tools.NewSPITool())
+			regTool(tools.NewSPITool())
 		}
 		if cfg.Tools.IsToolEnabled("serial") {
-			agent.Tools.Register(tools.NewSerialTool())
+			regTool(tools.NewSerialTool())
 		}
 
 		// Message tool
@@ -216,7 +225,7 @@ func registerSharedTools(
 				defer pubCancel()
 				return msgBus.PublishOutbound(pubCtx, outboundMessage)
 			})
-			agent.Tools.Register(messageTool)
+			regTool(messageTool)
 		}
 		if cfg.Tools.IsToolEnabled("reaction") {
 			reactionTool := tools.NewReactionTool()
@@ -235,7 +244,7 @@ func registerSharedTools(
 				_, err := rc.ReactToMessage(ctx, chatID, messageID)
 				return err
 			})
-			agent.Tools.Register(reactionTool)
+			regTool(reactionTool)
 		}
 
 		// Send file tool (outbound media via MediaStore — store injected later by SetMediaStore)
@@ -247,11 +256,11 @@ func registerSharedTools(
 				nil,
 				allowReadPaths,
 			)
-			agent.Tools.Register(sendFileTool)
+			regTool(sendFileTool)
 		}
 
 		if ttsProvider != nil {
-			agent.Tools.Register(tools.NewSendTTSTool(ttsProvider, nil))
+			regTool(tools.NewSendTTSTool(ttsProvider, nil))
 		}
 
 		if cfg.Tools.IsToolEnabled("load_image") {
@@ -262,7 +271,7 @@ func registerSharedTools(
 				nil,
 				allowReadPaths,
 			)
-			agent.Tools.Register(loadImageTool)
+			regTool(loadImageTool)
 		}
 
 		// Skill discovery and installation tools
@@ -277,11 +286,11 @@ func registerSharedTools(
 					cfg.Tools.Skills.SearchCache.MaxSize,
 					time.Duration(cfg.Tools.Skills.SearchCache.TTLSeconds)*time.Second,
 				)
-				agent.Tools.Register(tools.NewFindSkillsTool(registryMgr, searchCache))
+				regTool(tools.NewFindSkillsTool(registryMgr, searchCache))
 			}
 
 			if install_skills_enable {
-				agent.Tools.Register(tools.NewInstallSkillTool(registryMgr, agent.Workspace))
+				regTool(tools.NewInstallSkillTool(registryMgr, agent.Workspace))
 			}
 		}
 
@@ -374,15 +383,15 @@ func registerSharedTools(
 					return registry.CanSpawnSubagent(currentAgentID, targetAgentID)
 				})
 
-				agent.Tools.Register(spawnTool)
+				regTool(spawnTool)
 
 				// Also register the synchronous subagent tool
 				subagentTool := tools.NewSubagentTool(subagentManager)
 				subagentTool.SetSpawner(NewSubTurnSpawner(al))
-				agent.Tools.Register(subagentTool)
+				regTool(subagentTool)
 			}
 			if spawnStatusEnabled {
-				agent.Tools.Register(tools.NewSpawnStatusTool(subagentManager))
+				regTool(tools.NewSpawnStatusTool(subagentManager))
 			}
 		} else if (spawnEnabled || spawnStatusEnabled) && !cfg.Tools.IsToolEnabled("subagent") {
 			logger.WarnCF("agent", "spawn/spawn_status tools require subagent to be enabled", nil)
@@ -400,7 +409,7 @@ func registerSharedTools(
 			delegateTool.SetAllowlistChecker(func(targetAgentID string) bool {
 				return registry.CanSpawnSubagent(currentAgentID, targetAgentID)
 			})
-			agent.Tools.Register(delegateTool)
+			regTool(delegateTool)
 		}
 
 		warnOnUnknownAgentToolDeclarations(agentID, agent.Workspace, agent.Definition, agent.Tools)
