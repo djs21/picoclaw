@@ -90,6 +90,10 @@ func (t *MessageTool) Parameters() map[string]any {
 		"required":   []string{"content"},
 	}
 	if t.localMediaEnabled {
+		properties["file_path"] = map[string]any{
+			"type":        "string",
+			"description": "Optional path to a local file/document/image to send with the message. Relative paths are resolved from workspace.",
+		}
 		properties["media"] = map[string]any{
 			"type":        "array",
 			"description": "Optional local media attachments to send with the message. Requires tools.message.media_enabled.",
@@ -116,6 +120,7 @@ func (t *MessageTool) Parameters() map[string]any {
 		params["anyOf"] = []map[string]any{
 			{"required": []string{"content"}},
 			{"required": []string{"media"}},
+			{"required": []string{"file_path"}},
 		}
 	}
 	return params
@@ -180,10 +185,17 @@ func (t *MessageTool) SetSendCallback(callback SendCallbackWithContext) {
 func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolResult {
 	content, _ := args["content"].(string)
 	content = strings.TrimSpace(content)
+	filePath, _ := args["file_path"].(string)
+	filePath = strings.TrimSpace(filePath)
+
 	mediaArgs, err := parseMessageMediaArgs(args["media"])
 	if err != nil {
 		return &ToolResult{ForLLM: err.Error(), IsError: true}
 	}
+	if filePath != "" {
+		mediaArgs = append([]messageMediaArg{{Path: filePath}}, mediaArgs...)
+	}
+
 	if len(mediaArgs) > 0 && !t.localMediaEnabled {
 		return &ToolResult{
 			ForLLM:  "message media attachments are disabled; enable tools.message.media_enabled to send local media through message",
@@ -191,7 +203,7 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 		}
 	}
 	if content == "" && len(mediaArgs) == 0 {
-		return &ToolResult{ForLLM: "content or media is required", IsError: true}
+		return &ToolResult{ForLLM: "content, file_path, or media is required", IsError: true}
 	}
 
 	channel, _ := args["channel"].(string)
@@ -236,10 +248,14 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 		status = fmt.Sprintf("Message with %d media attachment(s) sent to %s:%s", len(parts), channel, chatID)
 	}
 
-	return &ToolResult{
+	res := &ToolResult{
 		ForLLM: status,
 		Silent: true,
 	}
+	if len(parts) > 0 {
+		res = res.WithResponseHandled()
+	}
+	return res
 }
 
 func parseMessageMediaArgs(raw any) ([]messageMediaArg, error) {

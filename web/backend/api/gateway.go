@@ -461,9 +461,6 @@ func computeConfigSignature(cfg *config.Config) string {
 	if cfg.Tools.Message.Enabled {
 		toolSignatures = append(toolSignatures, "message")
 	}
-	if cfg.Tools.SendFile.Enabled {
-		toolSignatures = append(toolSignatures, "send_file")
-	}
 	// spawn_status was folded into the unified spawn tool, so a single flag
 	// now controls the tool signature.
 	if cfg.Tools.Spawn.Enabled {

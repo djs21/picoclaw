@@ -235,17 +235,8 @@ func registerSharedTools(
 			regTool(reactionTool)
 		}
 
-		// Send file tool (outbound media via MediaStore — store injected later by SetMediaStore)
-		if cfg.Tools.IsToolEnabled("send_file") {
-			sendFileTool := tools.NewSendFileTool(
-				agent.Workspace,
-				cfg.Agents.Defaults.RestrictToWorkspace,
-				cfg.Agents.Defaults.GetMaxMediaSize(),
-				nil,
-				allowReadPaths,
-			)
-			regTool(sendFileTool)
-		}
+		// Send file capability is now unified into the message tool (file_path parameter).
+		// We no longer register the redundant send_file tool.
 
 		if ttsProvider != nil {
 			regTool(tools.NewSendTTSTool(ttsProvider, nil))

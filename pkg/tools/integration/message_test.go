@@ -162,12 +162,12 @@ func TestMessageTool_Execute_MissingContent(t *testing.T) {
 
 	result := tool.Execute(ctx, args)
 
-	// Verify error result for missing content/media
+	// Verify error result for missing content/media/file_path
 	if !result.IsError {
-		t.Error("Expected IsError=true for missing content/media")
+		t.Error("Expected IsError=true for missing content/media/file_path")
 	}
-	if result.ForLLM != "content or media is required" {
-		t.Errorf("Expected ForLLM 'content or media is required', got '%s'", result.ForLLM)
+	if result.ForLLM != "content, file_path, or media is required" {
+		t.Errorf("Expected ForLLM 'content, file_path, or media is required', got '%s'", result.ForLLM)
 	}
 }
 
@@ -313,8 +313,8 @@ func TestMessageTool_Parameters_WithLocalMediaEnabled(t *testing.T) {
 		t.Error("Expected media type to be 'array'")
 	}
 	anyOf, ok := params["anyOf"].([]map[string]any)
-	if !ok || len(anyOf) != 2 {
-		t.Fatal("Expected anyOf content/media requirement")
+	if !ok || len(anyOf) != 3 {
+		t.Fatal("Expected anyOf content/media/file_path requirement")
 	}
 	if _, ok := params["required"]; ok {
 		t.Fatal("did not expect top-level required content when media is enabled")

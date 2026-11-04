@@ -113,15 +113,9 @@ var toolCatalog = []toolCatalogEntry{
 	},
 	{
 		Name:        "message",
-		Description: "Send a follow-up message back to the active user or chat.",
+		Description: "Send a follow-up message or file attachment back to the active user or chat.",
 		Category:    "communication",
 		ConfigKey:   "message",
-	},
-	{
-		Name:        "send_file",
-		Description: "Send an outbound file or media attachment to the active chat.",
-		Category:    "communication",
-		ConfigKey:   "send_file",
 	},
 	{
 		Name:        "skills",
@@ -247,7 +241,7 @@ func applyToolState(cfg *config.Config, toolName string, enabled bool) error {
 	case "message":
 		cfg.Tools.Message.Enabled = enabled
 	case "send_file":
-		cfg.Tools.SendFile.Enabled = enabled
+		return fmt.Errorf("tool %q was consolidated into message", toolName)
 	case "skills":
 		cfg.Tools.Skills.Enabled = enabled
 	case "find_skills", "install_skill":

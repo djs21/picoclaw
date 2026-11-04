@@ -2204,6 +2204,7 @@ func TestResolveMessageRoute_UsesDispatchRulesInOrder(t *testing.T) {
 func TestProcessMessage_MediaArtifactCanBeForwardedBySendFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfg := config.DefaultConfig()
+	cfg.Tools.Message.MediaEnabled = true
 	cfg.Agents.Defaults.Workspace = tmpDir
 	cfg.Agents.Defaults.ModelName = "test-model"
 	cfg.Agents.Defaults.MaxTokens = 4096
@@ -2584,14 +2585,20 @@ func (m *artifactThenSendProvider) Chat(
 		return nil, fmt.Errorf("provider did not receive artifact path in tool result")
 	}
 
+	if m.calls == 2 {
+		return &providers.LLMResponse{
+			Content: "",
+			ToolCalls: []providers.ToolCall{{
+				ID:        "call_message",
+				Type:      "function",
+				Name:      "message",
+				Arguments: map[string]any{"file_path": artifactPath},
+			}},
+		}, nil
+	}
+
 	return &providers.LLMResponse{
-		Content: "",
-		ToolCalls: []providers.ToolCall{{
-			ID:        "call_send_file",
-			Type:      "function",
-			Name:      "send_file",
-			Arguments: map[string]any{"path": artifactPath},
-		}},
+		Content: "Sent the screenshot.",
 	}, nil
 }
 

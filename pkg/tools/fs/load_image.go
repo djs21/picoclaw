@@ -3,11 +3,13 @@ package fstools
 import (
 	"context"
 	"fmt"
+	"mime"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/h2non/filetype"
 	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/media"
 )
@@ -18,9 +20,9 @@ import (
 // vision on local files — the same pipeline used when a user sends an image
 // through a chat channel.
 //
-// This is intentionally different from SendFileTool:
-//   - SendFileTool  → MediaResult + WithResponseHandled() → sends file to user, ends turn
-//   - LoadImageTool → plain ToolResult with media:// in ForLLM  → LLM sees the image next turn
+// This is intentionally different from message tool's file_path:
+//   - message(file_path=...) → sends file to user, ends turn
+//   - LoadImageTool          → plain ToolResult with media:// in ForLLM  → LLM sees the image next turn
 type LoadImageTool struct {
 	workspace   string
 	restrict    bool
@@ -126,7 +128,7 @@ func (t *LoadImageTool) Execute(ctx context.Context, args map[string]any) *ToolR
 		))
 	}
 
-	// Detect MIME type — reuse the helper already in send_file.go
+	// Detect MIME type
 	mediaType := detectMediaType(resolved)
 	if !strings.HasPrefix(mediaType, "image/") {
 		return ErrorResult(fmt.Sprintf(
@@ -160,4 +162,19 @@ func (t *LoadImageTool) Execute(ctx context.Context, args map[string]any) *ToolR
 		// that would send the file to the user channel instead.
 		Media: []string{ref},
 	}
+}
+
+func detectMediaType(path string) string {
+	kind, err := filetype.MatchFile(path)
+	if err == nil && kind != filetype.Unknown {
+		return kind.MIME.Value
+	}
+
+	if ext := filepath.Ext(path); ext != "" {
+		if t := mime.TypeByExtension(ext); t != "" {
+			return t
+		}
+	}
+
+	return "application/octet-stream"
 }

@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	HandledToolLLMNote   = "The requested output has already been delivered to the user in the current chat. Do not call send_file or any other delivery tool again. If you reply, provide only a brief confirmation."
-	ArtifactPathsLLMNote = "Use `send_file` with one of these paths to send it to the user, or use file/exec tools to save it inside the workspace if requested."
+	HandledToolLLMNote   = "The requested output has already been delivered to the user in the current chat. Do not call message or any other delivery tool again. If you reply, provide only a brief confirmation."
+	ArtifactPathsLLMNote = "Use `message` with file_path set to one of these paths to send it to the user, or use file/exec tools to save it inside the workspace if requested."
 )
 
 // ToolResult represents the structured return value from tool execution.

@@ -13,7 +13,6 @@ type (
 	ListDirTool       = fstools.ListDirTool
 	EditFileTool      = fstools.EditFileTool
 	LoadImageTool     = fstools.LoadImageTool
-	SendFileTool      = fstools.SendFileTool
 )
 
 const MaxReadFileSize = fstools.MaxReadFileSize
@@ -69,14 +68,4 @@ func NewLoadImageTool(
 	allowPaths ...[]*regexp.Regexp,
 ) *LoadImageTool {
 	return fstools.NewLoadImageTool(workspace, restrict, maxFileSize, store, allowPaths...)
-}
-
-func NewSendFileTool(
-	workspace string,
-	restrict bool,
-	maxFileSize int,
-	store media.MediaStore,
-	allowPaths ...[]*regexp.Regexp,
-) *SendFileTool {
-	return fstools.NewSendFileTool(workspace, restrict, maxFileSize, store, allowPaths...)
 }
