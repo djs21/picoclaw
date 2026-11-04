@@ -630,7 +630,8 @@ func (p *Pipeline) CallLLM(
 		// bounded re-prompt so the model can retry with native tool calling.
 		if matched, reason := detectLeakedToolCall(responseContent); matched {
 			if exec.toolLeakRecoveryAttempts < maxToolLeakRecoveryAttempts &&
-				iteration < ts.agent.MaxIterations {
+				iteration < ts.agent.MaxIterations &&
+				len(exec.providerToolDefs) > 0 {
 				exec.toolLeakRecoveryAttempts++
 				exec.finalContent = ""
 				cancelConfiguredStreamingLLM(turnCtx, exec)

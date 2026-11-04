@@ -253,6 +253,53 @@ func TestPipeline_LeakRecoveryIsBoundedToSingleReprompt(t *testing.T) {
 	}
 }
 
+// TestPipeline_DoesNotRepromptWhenTurnExposesNoTools keeps the shim inert for
+// tool-less turns: re-prompting a model to "use the structured interface" when
+// no tools are offered would only burn an extra round trip.
+func TestPipeline_DoesNotRepromptWhenTurnExposesNoTools(t *testing.T) {
+	cfg := &config.Config{
+		Agents: config.AgentsConfig{
+			Defaults: config.AgentDefaults{
+				Workspace:         t.TempDir(),
+				ModelName:         "test-model",
+				MaxTokens:         4096,
+				MaxToolIterations: 10,
+				TurnProfile: config.TurnProfileConfig{
+					Enabled: true,
+					History: config.TurnProfileBlock{Mode: config.TurnProfileModeOff},
+					Tools:   config.TurnProfileBlock{Mode: config.TurnProfileModeOff},
+				},
+			},
+		},
+	}
+	provider := &leakRecoveryProvider{}
+	provider.respond = func(int, []providers.Message) *providers.LLMResponse {
+		return &providers.LLMResponse{Content: leakedToolCallReply, FinishReason: "stop"}
+	}
+	tool := &leakRecoveryRecordingTool{}
+	al := NewAgentLoop(cfg, bus.NewMessageBus(), provider)
+	al.RegisterTool(tool)
+
+	response, err := al.runAgentLoop(
+		context.Background(),
+		al.GetRegistry().GetDefaultAgent(),
+		processOptions{
+			SessionKey:      "agent:default:test-leak-recovery-tools-off",
+			UserMessage:     "please check git status",
+			DefaultResponse: defaultResponse,
+		},
+	)
+	if err != nil {
+		t.Fatalf("runAgentLoop() error = %v", err)
+	}
+	if got := provider.callCount(); got != 1 {
+		t.Fatalf("provider calls = %d, want 1 (no recovery when tools are off)", got)
+	}
+	if response != leakedToolCallReply {
+		t.Fatalf("response = %q, want the reply delivered unchanged", response)
+	}
+}
+
 // TestPipeline_DoesNotRepromptWhenToolSyntaxAppearsInCodeFence keeps the shim
 // from firing on documentation: explaining the syntax inside a fenced block is
 // a legitimate answer and must not trigger a recovery round trip.
