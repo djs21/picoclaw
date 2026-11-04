@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/sipeed/picoclaw/pkg/tools"
@@ -48,6 +49,60 @@ func (c toolDiscoveryPromptContributor) ContributePrompt(
 			Title:   "tool discovery",
 			Content: content,
 			Stable:  true,
+			Cache:   PromptCacheEphemeral,
+		},
+	}, nil
+}
+
+type lazyToolManifestPromptContributor struct {
+	manifestFn func() []tools.ToolManifestDoc
+}
+
+func (c lazyToolManifestPromptContributor) PromptSource() PromptSourceDescriptor {
+	return PromptSourceDescriptor{
+		ID:              PromptSourceToolManifest,
+		Owner:           "tools",
+		Description:     "Compact deferred tool manifest instructions",
+		Allowed:         []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotTooling}},
+		StableByDefault: false,
+	}
+}
+
+func (c lazyToolManifestPromptContributor) ContributePrompt(
+	_ context.Context,
+	req PromptBuildRequest,
+) ([]PromptPart, error) {
+	if req.SuppressToolUseRule || c.manifestFn == nil {
+		return nil, nil
+	}
+
+	docs := c.manifestFn()
+	if len(docs) == 0 {
+		return nil, nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Available Deferred Tools (Load On-Demand)\n")
+	sb.WriteString("The following tools are available in the deferred library. Their full parameter schemas are hidden to conserve memory.\n")
+	sb.WriteString("To use one or more of these tools, first invoke `load_tool` with their names to unlock their schemas for subsequent turns, or call them directly if auto-intercept is active:\n\n")
+
+	for _, doc := range docs {
+		desc := doc.Description
+		if desc == "" {
+			desc = "No description provided."
+		}
+		sb.WriteString(fmt.Sprintf("- `%s`: %s\n", doc.Name, desc))
+	}
+
+	return []PromptPart{
+		{
+			ID:      "capability.lazy_tool_manifest",
+			Layer:   PromptLayerCapability,
+			Slot:    PromptSlotTooling,
+			Source:  PromptSource{ID: PromptSourceToolManifest, Name: "tool_registry:manifest"},
+			Title:   "deferred tool manifest",
+			Content: sb.String(),
+			Stable:  false,
 			Cache:   PromptCacheEphemeral,
 		},
 	}, nil

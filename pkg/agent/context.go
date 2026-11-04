@@ -18,6 +18,7 @@ import (
 	"github.com/sipeed/picoclaw/pkg/logger"
 	"github.com/sipeed/picoclaw/pkg/providers"
 	"github.com/sipeed/picoclaw/pkg/skills"
+	"github.com/sipeed/picoclaw/pkg/tools"
 	"github.com/sipeed/picoclaw/pkg/utils"
 )
 
@@ -57,6 +58,25 @@ func (cb *ContextBuilder) WithToolDiscovery(useBM25, useRegex bool) *ContextBuil
 			logger.WarnCF(
 				"agent",
 				"Failed to register tool discovery prompt contributor",
+				map[string]any{
+					"error": err.Error(),
+				},
+			)
+		}
+	}
+	return cb
+}
+
+// WithLazyToolManifest registers a prompt contributor that renders a compact manifest
+// of deferred tools and load_tool instructions.
+func (cb *ContextBuilder) WithLazyToolManifest(manifestFn func() []tools.ToolManifestDoc) *ContextBuilder {
+	if manifestFn != nil {
+		if err := cb.RegisterPromptContributor(lazyToolManifestPromptContributor{
+			manifestFn: manifestFn,
+		}); err != nil {
+			logger.WarnCF(
+				"agent",
+				"Failed to register lazy tool manifest prompt contributor",
 				map[string]any{
 					"error": err.Error(),
 				},

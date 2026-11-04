@@ -55,6 +55,7 @@ const (
 	PromptSourceAgentDiscovery PromptSourceID = "agent:discovery"
 	PromptSourceToolRegistry   PromptSourceID = "tool_registry:native"
 	PromptSourceToolDiscovery  PromptSourceID = "tool_registry:discovery"
+	PromptSourceToolManifest   PromptSourceID = "tool_registry:manifest"
 	PromptSourceOutputPolicy   PromptSourceID = "runtime.output"
 	PromptSourceSubTurnProfile PromptSourceID = "subturn.profile"
 	PromptSourceUserMessage    PromptSourceID = "turn:user_message"
@@ -182,6 +183,13 @@ func builtinPromptSources() []PromptSourceDescriptor {
 			Description:     "Tool discovery instructions",
 			Allowed:         []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotTooling}},
 			StableByDefault: true,
+		},
+		{
+			ID:              PromptSourceToolManifest,
+			Owner:           "tools",
+			Description:     "Compact deferred tool manifest instructions",
+			Allowed:         []PromptPlacement{{Layer: PromptLayerCapability, Slot: PromptSlotTooling}},
+			StableByDefault: false,
 		},
 		{
 			ID:              PromptSourceToolRegistry,
