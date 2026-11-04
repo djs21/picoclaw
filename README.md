@@ -187,6 +187,11 @@ Prerequisites:
 - Go 1.25+
 - Node.js 22+ and pnpm 10.33.0+ for Web UI / launcher builds
 
+If your distro ships an older Go, no manual upgrade is needed: the Makefile
+leaves `GOTOOLCHAIN` to the Go command, which downloads and uses the toolchain
+required by `go.mod`. To build against a specific (for example the newest)
+toolchain, run `make install GOTOOLCHAIN=go1.27.3`.
+
 ```bash
 git clone https://github.com/sipeed/picoclaw.git
 
