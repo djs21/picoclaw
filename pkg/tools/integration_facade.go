@@ -4,15 +4,12 @@ import (
 	"github.com/sipeed/picoclaw/pkg/audio/tts"
 	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/media"
-	"github.com/sipeed/picoclaw/pkg/skills"
 	integrationtools "github.com/sipeed/picoclaw/pkg/tools/integration"
 )
 
 type (
 	SendCallbackWithContext  = integrationtools.SendCallbackWithContext
 	ReactionCallback         = integrationtools.ReactionCallback
-	FindSkillsTool           = integrationtools.FindSkillsTool
-	InstallSkillTool         = integrationtools.InstallSkillTool
 	MessageTool              = integrationtools.MessageTool
 	ReactionTool             = integrationtools.ReactionTool
 	SendTTSTool              = integrationtools.SendTTSTool
@@ -33,14 +30,6 @@ type (
 	WebSearchToolOptions     = integrationtools.WebSearchToolOptions
 	WebFetchTool             = integrationtools.WebFetchTool
 )
-
-func NewFindSkillsTool(registryMgr *skills.RegistryManager, cache *skills.SearchCache) *FindSkillsTool {
-	return integrationtools.NewFindSkillsTool(registryMgr, cache)
-}
-
-func NewInstallSkillTool(registryMgr *skills.RegistryManager, workspace string) *InstallSkillTool {
-	return integrationtools.NewInstallSkillTool(registryMgr, workspace)
-}
 
 func NewMessageTool() *MessageTool {
 	return integrationtools.NewMessageTool()
