@@ -152,6 +152,9 @@ type turnExecution struct {
 	// Phase tracking
 	phase LLMPhase
 
+	// Tool-leak recovery tracking (bounds re-prompts per turn)
+	toolLeakRecoveryAttempts int
+
 	// Abort signaling for coordinator (set by Pipeline methods)
 	abortedByHardAbort bool // true when hard abort triggered during LLM/tools
 	abortedByHook      bool // true when HookActionAbortTurn triggered

@@ -623,6 +623,37 @@ func (p *Pipeline) CallLLM(
 		}
 
 		exec.finalContent = responseContent
+
+		// Leak recovery: reasoning models behind some proxies print the tool
+		// call as text instead of emitting a structured call, which otherwise
+		// ends the turn with a forged envelope as the final answer. Inject one
+		// bounded re-prompt so the model can retry with native tool calling.
+		if matched, reason := detectLeakedToolCall(responseContent); matched {
+			if exec.toolLeakRecoveryAttempts < maxToolLeakRecoveryAttempts &&
+				iteration < ts.agent.MaxIterations {
+				exec.toolLeakRecoveryAttempts++
+				exec.finalContent = ""
+				cancelConfiguredStreamingLLM(turnCtx, exec)
+				logger.WarnCF("agent", "LLM leaked tool call as text; re-prompting once",
+					map[string]any{
+						"agent_id":      ts.agent.ID,
+						"iteration":     iteration,
+						"leak_reason":   reason,
+						"attempt":       exec.toolLeakRecoveryAttempts,
+						"content_chars": len(responseContent),
+					})
+				exec.pendingMessages = append(exec.pendingMessages, toolLeakRecoveryMessage())
+				return ControlContinue, nil
+			}
+			logger.WarnCF("agent", "LLM leaked tool call as text; recovery exhausted",
+				map[string]any{
+					"agent_id":    ts.agent.ID,
+					"iteration":   iteration,
+					"leak_reason": reason,
+					"attempts":    exec.toolLeakRecoveryAttempts,
+				})
+		}
+
 		logger.InfoCF("agent", "LLM response without tool calls (direct answer)",
 			map[string]any{
 				"agent_id":      ts.agent.ID,
