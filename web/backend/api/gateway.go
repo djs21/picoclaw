@@ -469,12 +469,6 @@ func computeConfigSignature(cfg *config.Config) string {
 	if cfg.Tools.Spawn.Enabled {
 		toolSignatures = append(toolSignatures, "spawn")
 	}
-	if cfg.Tools.I2C.Enabled {
-		toolSignatures = append(toolSignatures, "i2c")
-	}
-	if cfg.Tools.SPI.Enabled {
-		toolSignatures = append(toolSignatures, "spi")
-	}
 	if len(toolSignatures) > 0 {
 		parts = append(parts, "tools:"+strings.Join(toolSignatures, ","))
 	}

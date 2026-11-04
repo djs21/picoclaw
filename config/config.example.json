@@ -435,9 +435,6 @@
     "edit_file": {
       "enabled": true
     },
-    "i2c": {
-      "enabled": false
-    },
     "list_dir": {
       "enabled": true
     },
@@ -448,17 +445,11 @@
       "enabled": true,
       "mode": "bytes"
     },
-    "serial": {
-      "enabled": false
-    },
     "send_tts": {
       "enabled": false
     },
     "spawn": {
       "enabled": true
-    },
-    "spi": {
-      "enabled": false
     },
     "subagent": {
       "enabled": true

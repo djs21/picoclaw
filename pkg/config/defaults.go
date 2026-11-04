@@ -436,9 +436,6 @@ func DefaultConfig() *Config {
 			EditFile: ToolConfig{
 				Enabled: true,
 			},
-			I2C: ToolConfig{
-				Enabled: false, // Hardware tool - Linux only
-			},
 			ListDir: ToolConfig{
 				Enabled: true,
 			},
@@ -456,14 +453,8 @@ func DefaultConfig() *Config {
 				Mode:            ReadFileModeBytes,
 				MaxReadFileSize: 64 * 1024, // 64KB
 			},
-			Serial: ToolConfig{
-				Enabled: false, // Hardware tool - requires host serial ports
-			},
 			Spawn: ToolConfig{
 				Enabled: true,
-			},
-			SPI: ToolConfig{
-				Enabled: false, // Hardware tool - Linux only
 			},
 			Subagent: ToolConfig{
 				Enabled: true,

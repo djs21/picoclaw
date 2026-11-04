@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"runtime"
 	"strings"
 
 	"github.com/sipeed/picoclaw/pkg/config"
@@ -137,24 +136,6 @@ var toolCatalog = []toolCatalogEntry{
 		Category:  "agents",
 		ConfigKey: "spawn",
 	},
-	{
-		Name:        "i2c",
-		Description: "Interact with I2C hardware devices exposed on the host.",
-		Category:    "hardware",
-		ConfigKey:   "i2c",
-	},
-	{
-		Name:        "spi",
-		Description: "Interact with SPI hardware devices exposed on the host.",
-		Category:    "hardware",
-		ConfigKey:   "spi",
-	},
-	{
-		Name:        "serial",
-		Description: "Interact with serial ports exposed on the host.",
-		Category:    "hardware",
-		ConfigKey:   "serial",
-	},
 }
 
 func (h *Handler) registerToolRoutes(mux *http.ServeMux) {
@@ -222,10 +203,6 @@ func buildToolSupport(cfg *config.Config) []toolSupportItem {
 			}
 		case "web_search":
 			status, reasonCode = resolveWebSearchToolSupport(cfg)
-		case "i2c", "spi":
-			status, reasonCode = resolveHardwareToolSupport(cfg.Tools.IsToolEnabled(entry.ConfigKey))
-		case "serial":
-			status, reasonCode = resolveSerialToolSupport(cfg.Tools.IsToolEnabled(entry.ConfigKey))
 		default:
 			if cfg.Tools.IsToolEnabled(entry.ConfigKey) {
 				status = "enabled"
@@ -242,28 +219,6 @@ func buildToolSupport(cfg *config.Config) []toolSupportItem {
 		})
 	}
 	return items
-}
-
-func resolveHardwareToolSupport(enabled bool) (string, string) {
-	if !enabled {
-		return "disabled", ""
-	}
-	if runtime.GOOS != "linux" {
-		return "blocked", "requires_linux"
-	}
-	return "enabled", ""
-}
-
-func resolveSerialToolSupport(enabled bool) (string, string) {
-	if !enabled {
-		return "disabled", ""
-	}
-	switch runtime.GOOS {
-	case "linux", "darwin", "windows":
-		return "enabled", ""
-	default:
-		return "blocked", "requires_serial_platform"
-	}
 }
 
 func resolveWebSearchToolSupport(cfg *config.Config) (string, string) {
@@ -309,12 +264,6 @@ func applyToolState(cfg *config.Config, toolName string, enabled bool) error {
 		// an implicit runtime dependency of it, so neither is separately
 		// togglable from the tool catalog.
 		return fmt.Errorf("tool %q was consolidated into spawn", toolName)
-	case "i2c":
-		cfg.Tools.I2C.Enabled = enabled
-	case "spi":
-		cfg.Tools.SPI.Enabled = enabled
-	case "serial":
-		cfg.Tools.Serial.Enabled = enabled
 	default:
 		return fmt.Errorf("tool %q cannot be updated", toolName)
 	}
