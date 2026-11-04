@@ -29,7 +29,7 @@ func (t *EditFileTool) Name() string {
 }
 
 func (t *EditFileTool) Description() string {
-	return "Edit a file by replacing old_text with new_text. The old_text must exist exactly in the file. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n."
+	return "Edit a file by replacing old_text with new_text, creating a new file, or replacing entire content. If old_text is omitted or empty, or if create_if_missing is true and the file does not exist, new_text will be written as the file's content. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n."
 }
 
 func (t *EditFileTool) Parameters() map[string]any {
@@ -38,30 +38,29 @@ func (t *EditFileTool) Parameters() map[string]any {
 		"properties": map[string]any{
 			"path": map[string]any{
 				"type":        "string",
-				"description": "The file path to edit",
+				"description": "The file path to edit or create",
 			},
 			"old_text": map[string]any{
 				"type":        "string",
-				"description": "The exact text to find and replace. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n.",
+				"description": "The exact text to find and replace. Leave empty or omit if creating a new file or replacing entire file content. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n.",
 			},
 			"new_text": map[string]any{
 				"type":        "string",
-				"description": "The text to replace with. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n.",
+				"description": "The replacement text, or initial/full content for new or overwritten files. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n.",
+			},
+			"create_if_missing": map[string]any{
+				"type":        "boolean",
+				"description": "If true, creates the file if it does not already exist (defaults to true if old_text is empty).",
 			},
 		},
-		"required": []string{"path", "old_text", "new_text"},
+		"required": []string{"path", "new_text"},
 	}
 }
 
 func (t *EditFileTool) Execute(ctx context.Context, args map[string]any) *ToolResult {
 	path, ok := args["path"].(string)
-	if !ok {
+	if !ok || strings.TrimSpace(path) == "" {
 		return ErrorResult("path is required")
-	}
-
-	oldText, ok := args["old_text"].(string)
-	if !ok {
-		return ErrorResult("old_text is required")
 	}
 
 	newText, ok := args["new_text"].(string)
@@ -69,85 +68,70 @@ func (t *EditFileTool) Execute(ctx context.Context, args map[string]any) *ToolRe
 		return ErrorResult("new_text is required")
 	}
 
-	beforeContent, afterContent, err := editFile(t.fs, path, oldText, newText)
+	var oldText string
+	if ot, hasOld := args["old_text"].(string); hasOld {
+		oldText = ot
+	}
+
+	createIfMissing := oldText == ""
+	if cm, ok := args["create_if_missing"].(bool); ok {
+		createIfMissing = cm
+	}
+
+	beforeContent, afterContent, isNew, err := editOrCreateFile(t.fs, path, oldText, newText, createIfMissing)
 	if err != nil {
 		return ErrorResult(err.Error())
+	}
+	if isNew {
+		return SilentResult(fmt.Sprintf("File created: %s", path))
 	}
 	return DiffResult(path, beforeContent, afterContent)
 }
 
-type AppendFileTool struct {
-	fs fileSystem
-}
 
-func NewAppendFileTool(workspace string, restrict bool, allowPaths ...[]*regexp.Regexp) *AppendFileTool {
-	var patterns []*regexp.Regexp
-	if len(allowPaths) > 0 {
-		patterns = allowPaths[0]
-	}
-	return &AppendFileTool{fs: buildFs(workspace, restrict, patterns)}
-}
-
-func (t *AppendFileTool) Name() string {
-	return "append_file"
-}
-
-func (t *AppendFileTool) Description() string {
-	return "Append content to the end of a file. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n."
-}
-
-func (t *AppendFileTool) Parameters() map[string]any {
-	return map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"path": map[string]any{
-				"type":        "string",
-				"description": "The file path to append to",
-			},
-			"content": map[string]any{
-				"type":        "string",
-				"description": "The content to append. Standard JSON escaping applies: \\n for newline and \\\\n for literal backslash-n.",
-			},
-		},
-		"required": []string{"path", "content"},
-	}
-}
-
-func (t *AppendFileTool) Execute(ctx context.Context, args map[string]any) *ToolResult {
-	path, ok := args["path"].(string)
-	if !ok {
-		return ErrorResult("path is required")
+// editOrCreateFile reads the file via sysFs, performs the replacement, or creates/overwrites the file.
+func editOrCreateFile(sysFs fileSystem, path, oldText, newText string, createIfMissing bool) ([]byte, []byte, bool, error) {
+	content, err := sysFs.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) || strings.Contains(err.Error(), "no such file") || strings.Contains(err.Error(), "not found") {
+			if createIfMissing {
+				newBytes := []byte(newText)
+				if writeErr := sysFs.WriteFile(path, newBytes); writeErr != nil {
+					return nil, nil, false, writeErr
+				}
+				return nil, newBytes, true, nil
+			}
+			return nil, nil, false, fmt.Errorf("file not found: %s", path)
+		}
+		return nil, nil, false, err
 	}
 
-	content, ok := args["content"].(string)
-	if !ok {
-		return ErrorResult("content is required")
+	if oldText == "" {
+		// Replace entire content
+		newBytes := []byte(newText)
+		if writeErr := sysFs.WriteFile(path, newBytes); writeErr != nil {
+			return nil, nil, false, writeErr
+		}
+		return content, newBytes, false, nil
 	}
 
-	if err := appendFile(t.fs, path, content); err != nil {
-		return ErrorResult(err.Error())
+	newContent, err := replaceEditContent(content, oldText, newText)
+	if err != nil {
+		return nil, nil, false, err
 	}
-	return SilentResult(fmt.Sprintf("Appended to %s", path))
+
+	if writeErr := sysFs.WriteFile(path, newContent); writeErr != nil {
+		return nil, nil, false, writeErr
+	}
+
+	return content, newContent, false, nil
 }
 
 // editFile reads the file via sysFs, performs the replacement, and writes back.
 // It uses a fileSystem interface, allowing the same logic for both restricted and unrestricted modes.
 func editFile(sysFs fileSystem, path, oldText, newText string) ([]byte, []byte, error) {
-	content, err := sysFs.ReadFile(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	newContent, err := replaceEditContent(content, oldText, newText)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := sysFs.WriteFile(path, newContent); err != nil {
-		return nil, nil, err
-	}
-
-	return content, newContent, nil
+	before, after, _, err := editOrCreateFile(sysFs, path, oldText, newText, false)
+	return before, after, err
 }
 
 // appendFile reads the existing content (if any) via sysFs, appends new content, and writes back.

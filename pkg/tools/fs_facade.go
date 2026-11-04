@@ -10,10 +10,8 @@ import (
 type (
 	ReadFileTool      = fstools.ReadFileTool
 	ReadFileLinesTool = fstools.ReadFileLinesTool
-	WriteFileTool     = fstools.WriteFileTool
 	ListDirTool       = fstools.ListDirTool
 	EditFileTool      = fstools.EditFileTool
-	AppendFileTool    = fstools.AppendFileTool
 	LoadImageTool     = fstools.LoadImageTool
 	SendFileTool      = fstools.SendFileTool
 )
@@ -47,14 +45,6 @@ func NewReadFileLinesTool(
 	return fstools.NewReadFileLinesTool(workspace, restrict, maxReadFileSize, allowPaths...)
 }
 
-func NewWriteFileTool(
-	workspace string,
-	restrict bool,
-	allowPaths ...[]*regexp.Regexp,
-) *WriteFileTool {
-	return fstools.NewWriteFileTool(workspace, restrict, allowPaths...)
-}
-
 func NewListDirTool(
 	workspace string,
 	restrict bool,
@@ -69,14 +59,6 @@ func NewEditFileTool(
 	allowPaths ...[]*regexp.Regexp,
 ) *EditFileTool {
 	return fstools.NewEditFileTool(workspace, restrict, allowPaths...)
-}
-
-func NewAppendFileTool(
-	workspace string,
-	restrict bool,
-	allowPaths ...[]*regexp.Regexp,
-) *AppendFileTool {
-	return fstools.NewAppendFileTool(workspace, restrict, allowPaths...)
 }
 
 func NewLoadImageTool(
