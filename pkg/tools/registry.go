@@ -21,11 +21,13 @@ type ToolEntry struct {
 }
 
 type ToolRegistry struct {
-	tools      map[string]*ToolEntry
-	mu         sync.RWMutex
-	version    atomic.Uint64 // incremented on Register/RegisterHidden for cache invalidation
-	mediaStore media.MediaStore
-	allowlist  map[string]struct{}
+	tools         map[string]*ToolEntry
+	mu            sync.RWMutex
+	version       atomic.Uint64 // incremented on Register/RegisterHidden for cache invalidation
+	mediaStore    media.MediaStore
+	allowlist     map[string]struct{}
+	autoIntercept bool
+	interceptTTL  int
 }
 
 type mediaStoreAware interface {
@@ -58,6 +60,18 @@ func (r *ToolRegistry) SetAllowlist(names []string) {
 		allowlist[trimmed] = struct{}{}
 	}
 	r.allowlist = allowlist
+}
+
+// SetAutoIntercept configures whether calling an unpromoted deferred tool automatically
+// promotes it to active with the specified TTL.
+func (r *ToolRegistry) SetAutoIntercept(enabled bool, ttl int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.autoIntercept = enabled
+	if ttl <= 0 {
+		ttl = 3
+	}
+	r.interceptTTL = ttl
 }
 
 func (r *ToolRegistry) Register(tool Tool) {
@@ -326,6 +340,18 @@ func (r *ToolRegistry) ExecuteWithContext(
 		})
 
 	tool, ok := r.Get(name)
+	if !ok {
+		// If auto-intercept is enabled, check if the tool exists in registered deferred tools
+		// and automatically promote it.
+		r.mu.RLock()
+		autoInt := r.autoIntercept
+		intTTL := r.interceptTTL
+		r.mu.RUnlock()
+
+		if autoInt && r.AutoPromote(name, intTTL) {
+			tool, ok = r.Get(name)
+		}
+	}
 	if !ok {
 		logger.ErrorCF("tool", "Tool not found",
 			map[string]any{
