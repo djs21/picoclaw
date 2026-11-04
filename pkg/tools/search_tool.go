@@ -298,7 +298,7 @@ func (t *BM25SearchTool) getOrBuildEngine() *bm25CachedEngine {
 
 func isToolDiscoveryToolName(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case BM25SearchToolName, RegexSearchToolName:
+	case BM25SearchToolName, RegexSearchToolName, LoadToolName:
 		return true
 	default:
 		return false

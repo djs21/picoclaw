@@ -225,6 +225,71 @@ func (r *ToolRegistry) SnapshotHiddenTools() HiddenToolSnapshot {
 	}
 }
 
+// ToolManifestDoc represents a lightweight descriptor of a deferred tool for compact manifests.
+type ToolManifestDoc struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// SnapshotManifest returns an alphabetically sorted slice of all non-core tools
+// and their descriptions, suitable for system prompt manifests.
+func (r *ToolRegistry) SnapshotManifest() []ToolManifestDoc {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := make([]string, 0, len(r.tools))
+	for name, entry := range r.tools {
+		if !entry.IsCore {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+
+	manifest := make([]ToolManifestDoc, 0, len(names))
+	for _, name := range names {
+		entry := r.tools[name]
+		manifest = append(manifest, ToolManifestDoc{
+			Name:        name,
+			Description: entry.Tool.Description(),
+		})
+	}
+	return manifest
+}
+
+// GetEntry returns a copy of the ToolEntry for the given tool name regardless of TTL/core status.
+func (r *ToolRegistry) GetEntry(name string) (ToolEntry, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entry, ok := r.tools[name]
+	if !ok {
+		return ToolEntry{}, false
+	}
+	return *entry, true
+}
+
+// AutoPromote atomically promotes a registered non-core tool if its TTL is currently 0 or expired.
+// Returns true if the tool was promoted or was already active.
+func (r *ToolRegistry) AutoPromote(name string, ttl int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entry, ok := r.tools[name]
+	if !ok {
+		return false
+	}
+	if entry.IsCore {
+		return true
+	}
+	if entry.TTL < ttl {
+		entry.TTL = ttl
+		logger.DebugCF("tools", "Tool auto-promoted", map[string]any{
+			"name": name,
+			"ttl":  ttl,
+		})
+	}
+	return true
+}
+
 func (r *ToolRegistry) Get(name string) (Tool, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
