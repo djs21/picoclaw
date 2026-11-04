@@ -760,8 +760,6 @@
           "discovery": "Descoberta"
         },
         "reasons": {
-          "requires_linux": "Esta ferramenta só funciona em hosts Linux com os arquivos de dispositivo necessários expostos.",
-          "requires_serial_platform": "Esta ferramenta atualmente suporta hosts Linux, macOS e Windows com portas seriais acessíveis.",
           "requires_skills": "Habilite `tools.skills` antes que esta ferramenta de skill-registry possa ser usada.",
           "requires_subagent": "Habilite `tools.subagent` antes que a ferramenta de spawn possa delegar trabalho.",
           "requires_mcp_discovery": "Habilite `tools.mcp.discovery` antes que as ferramentas de descoberta MCP fiquem disponíveis.",

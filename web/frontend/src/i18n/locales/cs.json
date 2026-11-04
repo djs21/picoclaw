@@ -758,8 +758,6 @@
           "discovery": "Discovery"
         },
         "reasons": {
-          "requires_linux": "Tento nástroj funguje pouze na Linux hostech s potřebnými soubory zařízení.",
-          "requires_serial_platform": "Tento nástroj aktuálně podporuje hostitele Linux, macOS a Windows s dostupnými sériovými porty.",
           "requires_skills": "Nejprve aktivujte `tools.skills`, aby byl tento nástroj registru dovedností dostupný.",
           "requires_subagent": "Nejprve aktivujte `tools.subagent`, aby nástroj spawn mohl delegovat práci.",
           "requires_mcp_discovery": "Nejprve aktivujte `tools.mcp.discovery`, aby byly nástroje MCP discovery dostupné.",
