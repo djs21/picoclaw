@@ -292,6 +292,46 @@ After completing the task, provide a clear summary of what was done.`
 	}
 }
 
+// CreateTask registers a new subagent task and returns a snapshot of it.
+// The caller is responsible for executing the task and reporting completion
+// via FinishTask.
+func (sm *SubagentManager) CreateTask(
+	task, label, agentID, originChannel, originChatID string,
+) SubagentTask {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	taskID := fmt.Sprintf("subagent-%d", sm.nextID)
+	sm.nextID++
+
+	subagentTask := &SubagentTask{
+		ID:            taskID,
+		Task:          task,
+		Label:         label,
+		AgentID:       agentID,
+		OriginChannel: originChannel,
+		OriginChatID:  originChatID,
+		Status:        "running",
+		Created:       time.Now().UnixMilli(),
+	}
+	sm.tasks[taskID] = subagentTask
+
+	return *subagentTask
+}
+
+// FinishTask records the terminal status and result for a task.
+func (sm *SubagentManager) FinishTask(taskID, status, result string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	task, ok := sm.tasks[taskID]
+	if !ok {
+		return
+	}
+	task.Status = status
+	task.Result = result
+}
+
 func (sm *SubagentManager) GetTask(taskID string) (*SubagentTask, bool) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
@@ -333,127 +373,4 @@ func (sm *SubagentManager) ListTaskCopies() []SubagentTask {
 		copies = append(copies, *task)
 	}
 	return copies
-}
-
-// SubagentTool executes a subagent task synchronously and returns the result.
-// It directly calls SubTurnSpawner with Async=false for synchronous execution.
-type SubagentTool struct {
-	spawner      SubTurnSpawner
-	defaultModel string
-	maxTokens    int
-	temperature  float64
-}
-
-func NewSubagentTool(manager *SubagentManager) *SubagentTool {
-	if manager == nil {
-		return &SubagentTool{}
-	}
-	return &SubagentTool{
-		defaultModel: manager.defaultModel,
-		maxTokens:    manager.maxTokens,
-		temperature:  manager.temperature,
-	}
-}
-
-// SetSpawner sets the SubTurnSpawner for direct sub-turn execution.
-func (t *SubagentTool) SetSpawner(spawner SubTurnSpawner) {
-	t.spawner = spawner
-}
-
-func (t *SubagentTool) Name() string {
-	return "subagent"
-}
-
-func (t *SubagentTool) Description() string {
-	return "Execute a subagent task synchronously and return the result. Use this for delegating specific tasks to an independent agent instance. Returns execution summary to user and full details to LLM."
-}
-
-func (t *SubagentTool) Parameters() map[string]any {
-	return map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"task": map[string]any{
-				"type":        "string",
-				"description": "The task for subagent to complete",
-			},
-			"label": map[string]any{
-				"type":        "string",
-				"description": "Optional short label for the task (for display)",
-			},
-		},
-		"required": []string{"task"},
-	}
-}
-
-func (t *SubagentTool) Execute(ctx context.Context, args map[string]any) *ToolResult {
-	task, ok := args["task"].(string)
-	if !ok {
-		return ErrorResult("task is required").WithError(fmt.Errorf("task parameter is required"))
-	}
-
-	label, ok := args["label"].(string)
-	if !ok {
-		label = ""
-	}
-
-	// Build system prompt for subagent
-	systemPrompt := fmt.Sprintf(
-		`You are a subagent. Complete the given task independently and provide a clear, concise result.
-
-Task: %s`,
-		task,
-	)
-
-	if label != "" {
-		systemPrompt = fmt.Sprintf(
-			`You are a subagent labeled "%s". Complete the given task independently and provide a clear, concise result.
-
-Task: %s`,
-			label,
-			task,
-		)
-	}
-
-	// Use spawner if available (direct SpawnSubTurn call)
-	if t.spawner != nil {
-		result, err := t.spawner.SpawnSubTurn(ctx, SubTurnConfig{
-			Model:        t.defaultModel,
-			Tools:        nil, // Will inherit from parent via context
-			SystemPrompt: systemPrompt,
-			MaxTokens:    t.maxTokens,
-			Temperature:  t.temperature,
-			Async:        false, // Synchronous execution
-		})
-		if err != nil {
-			return ErrorResult(fmt.Sprintf("Subagent execution failed: %v", err)).WithError(err)
-		}
-
-		// Format result for display
-		userContent := result.ForLLM
-		if result.ForUser != "" {
-			userContent = result.ForUser
-		}
-		maxUserLen := 500
-		if len(userContent) > maxUserLen {
-			userContent = userContent[:maxUserLen] + "..."
-		}
-
-		labelStr := label
-		if labelStr == "" {
-			labelStr = "(unnamed)"
-		}
-		llmContent := fmt.Sprintf("Subagent task completed:\nLabel: %s\nResult: %s",
-			labelStr, result.ForLLM)
-
-		return &ToolResult{
-			ForLLM:  llmContent,
-			ForUser: userContent,
-			Silent:  false,
-			IsError: result.IsError,
-			Async:   false,
-		}
-	}
-
-	// Fallback: spawner not configured
-	return ErrorResult("Subagent manager not configured").WithError(fmt.Errorf("spawner not set"))
 }
