@@ -115,6 +115,8 @@
 
 🧠 **Smart routing**: Rule-based model routing — simple queries go to lightweight models, saving API costs.
 
+🛡️ **Self-recovering tool calls**: Reasoning-style models sometimes print `call:...` pseudo-syntax as plain text instead of issuing a real tool call. PicoClaw detects that leak, re-prompts once with the structured-call requirement, and keeps the turn alive instead of stalling.
+
 _*Recent builds may use 10-20MB due to rapid PR merges. Resource optimization is planned. Boot speed comparison based on 0.8GHz single-core benchmarks (see table below)._
 
 <div align="center">
@@ -191,6 +193,11 @@ If your distro ships an older Go, no manual upgrade is needed: the Makefile
 leaves `GOTOOLCHAIN` to the Go command, which downloads and uses the toolchain
 required by `go.mod`. To build against a specific (for example the newest)
 toolchain, run `make install GOTOOLCHAIN=go1.27.3`.
+
+All `make` build and test targets pass `-tags goolm,stdjson`. If you invoke `go`
+directly, pass the same tags: the Matrix channel needs the pure-Go `goolm`
+implementation, so a plain `go build ./...` stops at `olm/olm.h: No such file or
+directory`.
 
 ```bash
 git clone https://github.com/sipeed/picoclaw.git
@@ -525,7 +532,23 @@ PicoClaw can search the web to provide up-to-date information. Configure in `too
 
 ### ⚙️ Other Tools
 
-PicoClaw includes built-in tools for file operations, code execution, scheduling, and more. See [Tools Configuration](docs/reference/tools_configuration.md) for details.
+PicoClaw ships a small built-in tool set; everything else arrives through MCP servers or skills.
+
+| Family | Tools | Purpose |
+| --- | --- | --- |
+| Filesystem | `read_file`, `list_dir`, `edit_file` | Read, list, and patch workspace files |
+| Shell | `exec` | Run commands with deny-pattern and path guardrails |
+| Web | `web_search`, `web_fetch` | Search the web and fetch readable page content |
+| Scheduling | `cron` | Reminders, recurring jobs, command jobs |
+| Skills registry | `skills` | Browse and install skills from configured registries |
+| Messaging | `message`, `reaction` | Outbound messages, media delivery, and reactions |
+| Media | `load_image`, `send_tts` | Load images into context, synthesize speech |
+| Subagents | `spawn`, `delegate` | Background tasks, sync sub-turns, peer-agent handoff |
+| MCP | `mcp_<server>_<tool>` | Tools contributed by connected MCP servers |
+
+Individual tools can be enabled or disabled in `tools.*`; agents can also self-recover when a model emits tool-call pseudo-syntax as text instead of a structured call. See [Tools Configuration](docs/reference/tools_configuration.md) for details.
+
+Hardware access tools (`i2c`, `spi`, `serial`) are not part of the build. Boards run PicoClaw as a regular agent runtime and reach devices through skills, MCP servers, or `exec`.
 
 ## 🎯 Skills
 

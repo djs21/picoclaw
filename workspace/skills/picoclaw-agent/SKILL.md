@@ -233,7 +233,7 @@ Important activation rules:
 | MCP | `mcp_<server>_<tool>` | Tools contributed by connected MCP servers |
 | MCP discovery | `tool_search_tool_bm25`, `tool_search_tool_regex` | Discover deferred hidden MCP tools on demand |
 | Messaging | `message`, `reaction` | Send outbound messages and reactions through channel integrations |
-| Media | `send_file`, `load_image`, `send_tts` | Send files, load local images into context, generate TTS output |
+| Media | `load_image`, `send_tts` | Load local images into context, generate TTS output (media delivery rides on `message`) |
 | Subagents | `spawn`, `delegate` | Background tasks, synchronous sub-turns, task status, multi-agent delegation |
 
 ### Tool Registration Notes
