@@ -117,7 +117,7 @@
 
 🛡️ **Self-recovering tool calls**: Reasoning-style models sometimes print `call:...` pseudo-syntax as plain text instead of issuing a real tool call. PicoClaw detects that leak, re-prompts once with the structured-call requirement, and keeps the turn alive instead of stalling.
 
-🧩 **Lazy tool loading**: Keep only core tools in context and discover the rest on demand via `load_tool` / `tool_search_tool_regex`. Enable with `tools.lazy_loading.enabled: true` and tune `core_tools` (default: `read_file`, `edit_file`, `exec`, `web_search`). See [Tools Configuration](docs/reference/tools_configuration.md#lazy-tool-loading).
+🧩 **Lazy tool loading**: Keep only core tools in context and discover the rest on demand via `load_tool` / `tool_search_tool_regex`. Enable with `tools.lazy_loading.enabled: true` and tune `core_tools` (default: `read_file`, `edit_file`, `exec`). See [Tools Configuration](docs/reference/tools_configuration.md#lazy-tool-loading).
 
 _*Recent builds may use 10-20MB due to rapid PR merges. Resource optimization is planned. Boot speed comparison based on 0.8GHz single-core benchmarks (see table below)._
 

@@ -320,7 +320,7 @@ This is separate from MCP `discovery` below, which only affects MCP server tools
 | `default_ttl` | int | `3` | Number of turns a promoted deferred tool stays visible |
 | `auto_intercept` | bool | `true` | If the model calls a hidden tool directly, auto-promote it with `default_ttl` |
 | `max_search_results` | int | `5` | Max results returned by `tool_search_tool_regex` |
-| `core_tools` | string[] | `["read_file", "edit_file", "exec", "web_search"]` | Tools always exposed. Empty falls back to this default |
+| `core_tools` | string[] | `["read_file", "edit_file", "exec"]` | Tools always exposed. Empty falls back to this default |
 
 ### Always-active tools
 
@@ -351,7 +351,7 @@ Per-agent allowlists (`SetAllowlist`) still apply to hidden tools, but discovery
       "default_ttl": 3,
       "auto_intercept": true,
       "max_search_results": 5,
-      "core_tools": ["read_file", "edit_file", "exec", "web_search"]
+      "core_tools": ["read_file", "edit_file", "exec"]
     }
   }
 }

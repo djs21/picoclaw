@@ -324,7 +324,7 @@
       "default_ttl": 3,
       "auto_intercept": true,
       "max_search_results": 5,
-      "core_tools": ["read_file", "edit_file", "exec", "web_search"]
+      "core_tools": ["read_file", "edit_file", "exec"]
     },
     "web": {
       "enabled": true,

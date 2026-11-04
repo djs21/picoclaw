@@ -1149,7 +1149,6 @@ var DefaultLazyCoreTools = []string{
 	"read_file",
 	"edit_file",
 	"exec",
-	"web_search",
 }
 
 // EffectiveCoreTools returns the configured core tools, falling back to

@@ -18,7 +18,7 @@ func TestLazyLoadingConfig_Defaults(t *testing.T) {
 	assert.Equal(t, 3, lazy.DefaultTTL)
 	assert.True(t, lazy.AutoIntercept)
 	assert.Equal(t, 5, lazy.MaxSearchResults)
-	assert.Equal(t, []string{"read_file", "edit_file", "exec", "web_search"}, lazy.CoreTools)
+	assert.Equal(t, []string{"read_file", "edit_file", "exec"}, lazy.CoreTools)
 }
 
 func TestLazyLoadingConfig_DefaultsDropLegacyTools(t *testing.T) {
@@ -78,7 +78,8 @@ func TestLazyLoadingConfig_EffectiveCoreToolsFallsBackToDefaults(t *testing.T) {
 	unset := LazyLoadingConfig{Enabled: true}
 	assert.Equal(t, DefaultLazyCoreTools, unset.EffectiveCoreTools())
 	assert.True(t, unset.IsCoreTool("read_file"))
-	assert.True(t, unset.IsCoreTool("web_search"))
+	assert.False(t, unset.IsCoreTool("web_search"))
+	assert.False(t, unset.IsCoreTool("web_fetch"))
 	assert.False(t, unset.IsCoreTool("write_file"))
 
 	explicit := LazyLoadingConfig{Enabled: true, CoreTools: []string{"message"}}
