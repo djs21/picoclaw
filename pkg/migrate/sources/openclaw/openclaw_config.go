@@ -730,7 +730,6 @@ type WebToolsConfig struct {
 	Brave      BraveConfig      `json:"brave"`
 	Tavily     TavilyConfig     `json:"tavily"`
 	DuckDuckGo DuckDuckGoConfig `json:"duckduckgo"`
-	Perplexity PerplexityConfig `json:"perplexity"`
 	Proxy      string           `json:"proxy,omitempty"`
 }
 
@@ -754,12 +753,6 @@ type DuckDuckGoConfig struct {
 	MaxResults int  `json:"max_results"`
 }
 
-type PerplexityConfig struct {
-	Enabled    bool     `json:"enabled"`
-	APIKey     string   `json:"api_key"`
-	APIKeys    []string `json:"api_keys"`
-	MaxResults int      `json:"max_results"`
-}
 
 type CronConfig struct {
 	ExecTimeoutMinutes int `json:"exec_timeout_minutes"`
@@ -1197,14 +1190,6 @@ func (c ToolsConfig) ToStandardTools() config.ToolsConfig {
 		tavily.SetAPIKey(c.Web.Tavily.APIKey)
 	}
 
-	perplexity := config.PerplexityConfig{
-		Enabled:    c.Web.Perplexity.Enabled,
-		MaxResults: c.Web.Perplexity.MaxResults,
-	}
-	if c.Web.Perplexity.APIKey != "" {
-		perplexity.SetAPIKey(c.Web.Perplexity.APIKey)
-	}
-
 	return config.ToolsConfig{
 		Web: config.WebToolsConfig{
 			Brave:  brave,
@@ -1213,7 +1198,6 @@ func (c ToolsConfig) ToStandardTools() config.ToolsConfig {
 				Enabled:    c.Web.DuckDuckGo.Enabled,
 				MaxResults: c.Web.DuckDuckGo.MaxResults,
 			},
-			Perplexity: perplexity,
 			Proxy:      c.Web.Proxy,
 		},
 		Cron: config.CronToolsConfig{

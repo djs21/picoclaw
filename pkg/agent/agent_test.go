@@ -357,6 +357,7 @@ func newTestAgentLoop(
 func TestNewAgentLoop_RegistersWebSearchTool(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Agents.Defaults.Workspace = t.TempDir()
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
 
 	al := NewAgentLoop(cfg, bus.NewMessageBus(), &mockProvider{})
 
@@ -374,7 +375,7 @@ func TestNewAgentLoop_RegistersWebSearchTool_WhenExplicitProviderUnavailable(t *
 	cfg.Agents.Defaults.Workspace = t.TempDir()
 	cfg.Tools.Web.Provider = "brave"
 	cfg.Tools.Web.Brave.Enabled = true
-	cfg.Tools.Web.Sogou.Enabled = true
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
 
 	al := NewAgentLoop(cfg, bus.NewMessageBus(), &mockProvider{})
 
@@ -392,7 +393,6 @@ func TestNewAgentLoop_DoesNotRegisterWebSearchTool_WhenNoReadyProviders(t *testi
 	cfg.Agents.Defaults.Workspace = t.TempDir()
 	cfg.Tools.Web.Provider = "brave"
 	cfg.Tools.Web.Brave.Enabled = true
-	cfg.Tools.Web.Sogou.Enabled = false
 	cfg.Tools.Web.DuckDuckGo.Enabled = false
 
 	al := NewAgentLoop(cfg, bus.NewMessageBus(), &mockProvider{})

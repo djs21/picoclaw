@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sipeed/picoclaw/pkg/routing"
 )
 
 // SpawnTool is the unified subagent tool. It can spawn a subagent either in
@@ -211,8 +213,11 @@ func (t *SpawnTool) executeSpawn(
 	}
 
 	label, _ := args["label"].(string)
-	agentID, _ := args["agent_id"].(string)
-	targetAgentID := strings.TrimSpace(agentID)
+	rawAgentID, _ := args["agent_id"].(string)
+	targetAgentID := ""
+	if strings.TrimSpace(rawAgentID) != "" {
+		targetAgentID = routing.NormalizeAgentID(rawAgentID)
+	}
 
 	sync, err := parseBoolArg(args, "sync")
 	if err != nil {
@@ -234,14 +239,20 @@ func (t *SpawnTool) executeSpawn(
 
 	registered := t.manager.CreateTask(task, label, targetAgentID, ToolChannel(ctx), ToolChatID(ctx))
 	cfg := SubTurnConfig{
-		Model:         t.defaultModel,
-		Tools:         nil, // Inherited from the parent via context.
-		SystemPrompt:  buildSubagentSystemPrompt(task, label, sync),
-		MaxTokens:     t.maxTokens,
-		Temperature:   t.temperature,
-		Async:         !sync,
-		Critical:      !sync, // Background spawn should survive parent turn completion.
-		TargetAgentID: targetAgentID,
+		Tools:        nil, // Inherited from the parent via context.
+		SystemPrompt: buildSubagentSystemPrompt(task, label, sync),
+		MaxTokens:    t.maxTokens,
+		Temperature:  t.temperature,
+		Async:        !sync,
+		Critical:     !sync, // Background spawn should survive parent turn completion.
+	}
+	if targetAgentID != "" {
+		// Named peer route: the subturn layer resolves the peer's identity,
+		// model, workspace, and tools from TargetAgentID. Leave Model empty
+		// so the peer model wins over the parent default.
+		cfg.TargetAgentID = targetAgentID
+	} else {
+		cfg.Model = t.defaultModel
 	}
 
 	if sync {

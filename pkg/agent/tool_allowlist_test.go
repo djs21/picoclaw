@@ -49,7 +49,7 @@ tools: [read_file, web_serach]
 func TestUnknownAgentToolNamesUsesRegisteredRuntimeTools(t *testing.T) {
 	workspace := setupWorkspace(t, map[string]string{
 		"AGENT.md": `---
-tools: [serial, reaction, send_tts, load_image, delegate, made_up]
+tools: [serial, reaction, send_tts, load_image, spawn, made_up]
 ---
 # Agent
 `,
@@ -57,7 +57,7 @@ tools: [serial, reaction, send_tts, load_image, delegate, made_up]
 	defer cleanupWorkspace(t, workspace)
 
 	registry := agenttools.NewToolRegistry()
-	for _, name := range []string{"serial", "reaction", "send_tts", "load_image", "delegate"} {
+	for _, name := range []string{"serial", "reaction", "send_tts", "load_image", "spawn"} {
 		registry.Register(&allowlistTestTool{name: name})
 	}
 

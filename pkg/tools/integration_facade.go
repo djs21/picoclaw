@@ -19,13 +19,8 @@ type (
 	SearchResultItem         = integrationtools.SearchResultItem
 	BraveSearchProvider      = integrationtools.BraveSearchProvider
 	TavilySearchProvider     = integrationtools.TavilySearchProvider
-	SogouSearchProvider      = integrationtools.SogouSearchProvider
 	DuckDuckGoSearchProvider = integrationtools.DuckDuckGoSearchProvider
-	GeminiSearchProvider     = integrationtools.GeminiSearchProvider
-	PerplexitySearchProvider = integrationtools.PerplexitySearchProvider
 	SearXNGSearchProvider    = integrationtools.SearXNGSearchProvider
-	GLMSearchProvider        = integrationtools.GLMSearchProvider
-	BaiduSearchProvider      = integrationtools.BaiduSearchProvider
 	WebSearchTool            = integrationtools.WebSearchTool
 	WebSearchToolOptions     = integrationtools.WebSearchToolOptions
 	WebFetchTool             = integrationtools.WebFetchTool

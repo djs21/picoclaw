@@ -2170,6 +2170,10 @@ func newMultiAgentLoop(t *testing.T, provider providers.LLMProvider) (*AgentLoop
 	os.MkdirAll(betaDir, 0o755)
 
 	cfg := &config.Config{
+		Tools: config.ToolsConfig{
+			Subagent: config.ToolConfig{Enabled: true},
+			Spawn:   config.ToolConfig{Enabled: true},
+		},
 		Agents: config.AgentsConfig{
 			Defaults: config.AgentDefaults{
 				Workspace:         tmpDir,
@@ -2298,8 +2302,8 @@ func TestSpawnSubTurn_TargetAgentID_EmptyModelAccepted(t *testing.T) {
 	}
 }
 
-func TestDelegateToolNotRegistered_SingleAgent(t *testing.T) {
-	// Single-agent setup: delegate should not be registered
+func TestSpawnToolNotRegistered_SingleAgent(t *testing.T) {
+	// Single-agent setup: spawn requires subagent enabled, not registered here
 	al, _, _, provider, cleanup := newTestAgentLoop(t)
 	_ = provider
 	defer cleanup()
@@ -2313,18 +2317,18 @@ func TestDelegateToolNotRegistered_SingleAgent(t *testing.T) {
 	}
 }
 
-func TestDelegateToolRegistered_MultiAgent(t *testing.T) {
+func TestSpawnToolRegistered_MultiAgent(t *testing.T) {
 	al, cleanup := newMultiAgentLoop(t, &mockProvider{})
 	defer cleanup()
 
-	// Both agents should have the delegate tool
+	// Both agents should have the spawn tool (delegate was merged into spawn)
 	for _, id := range []string{"alpha", "beta"} {
 		agent, ok := al.registry.GetAgent(id)
 		if !ok {
 			t.Fatalf("agent %q not found", id)
 		}
-		if _, has := agent.Tools.Get("delegate"); !has {
-			t.Errorf("agent %q should have delegate tool in multi-agent setup", id)
+		if _, has := agent.Tools.Get("spawn"); !has {
+			t.Errorf("agent %q should have spawn tool in multi-agent setup", id)
 		}
 	}
 }
