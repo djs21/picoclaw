@@ -2943,11 +2943,6 @@ func TestFilterSensitiveData_AllTokenTypes(t *testing.T) {
 				Tavily: TavilyConfig{
 					APIKeys: SecureStrings{NewSecureString("tavily-api-key")},
 				},
-				Perplexity: PerplexityConfig{
-					APIKeys: SecureStrings{NewSecureString("perplexity-api-key")},
-				},
-				GLMSearch:   GLMSearchConfig{APIKey: *NewSecureString("glm-search-key")},
-				BaiduSearch: BaiduSearchConfig{APIKey: *NewSecureString("baidu-search-key")},
 			},
 			// Skills tokens
 			Skills: SkillsToolsConfig{

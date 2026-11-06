@@ -234,13 +234,12 @@ Important activation rules:
 | MCP discovery | `tool_search_tool_bm25`, `tool_search_tool_regex` | Discover deferred hidden MCP tools on demand |
 | Messaging | `message`, `reaction` | Send outbound messages and reactions through channel integrations |
 | Media | `load_image`, `send_tts` | Load local images into context, generate TTS output (media delivery rides on `message`) |
-| Subagents | `spawn`, `delegate` | Background tasks, synchronous sub-turns, task status, multi-agent delegation |
+| Subagents | `spawn` | Background tasks, synchronous sub-turns, task status, multi-agent delegation |
 
 ### Tool Registration Notes
 
 - `send_tts` is registered only when a TTS provider is available.
 - `spawn` requires `subagent` support to be enabled in `tools.subagent`.
-- `delegate` is auto-registered only when more than one agent exists.
 - MCP discovery tools are relevant only when deferred MCP discovery is enabled.
 - `message` can be configured for outbound media as well as plain text.
 
@@ -254,7 +253,7 @@ The core idea is:
 
 - use `spawn(task="...", sync=false)` (or default) for background work that should continue without blocking the current turn
 - use `spawn(task="...", sync=true)` for an isolated synchronous sub-task when the parent needs the result immediately
-- use `delegate` to hand a task to a specific peer agent with its own identity, model, workspace, and tools
+- use `spawn(action="spawn", agent_id="...")` to hand a task to a specific peer agent with its own identity, model, workspace, and tools
 - use `spawn(action="status", task_id="...")` or `spawn(action="list")` (or `/subagents`) to inspect what is currently running
 
 ### Choosing the Right Subagent Tool
@@ -264,7 +263,6 @@ The core idea is:
 | `spawn` (`sync=false`) | Async background task | Web research, API polling, long scans, work that can report back later |
 | `spawn` (`sync=true`) | Sync isolated sub-turn | Focused analysis, transformation, or verification that must return before the parent continues |
 | `spawn` (`action="status"|"list"`) | Inspection/status only | Check running, completed, failed, or canceled spawned tasks |
-| `delegate` | Sync handoff to named peer agent | Work that should run as a specialized agent rather than as a generic child turn |
 
 ### Specialized Peer Agents
 
@@ -318,7 +316,7 @@ That means:
 - the current agent is omitted
 - discovery uses the peer agent's stable `id`, `name`, and `description`
 
-In practice, this is what makes targeted `spawn(..., agent_id="research")` or `delegate(agent_id="research", ...)` reliable.
+In practice, this is what makes targeted `spawn(..., agent_id="research")` with `agent_id` reliable.
 
 ### Operational Behavior
 
@@ -327,7 +325,6 @@ Subagent execution semantics that matter:
 - subagents run in isolated ephemeral session history, so their reasoning and intermediate steps do not pollute the parent conversation
 - `spawn(sync=false)` returns immediately and launches background work in a goroutine
 - `spawn(sync=true)` waits for completion and returns the result directly
-- `delegate` is synchronous and runs as the target peer agent instead of a generic child task
 - `spawn(action="status")` and `spawn(action="list")` are scoped to the current conversation when channel/chat context exists
 - all subagents still share the same workspace security boundary; they do not bypass sandbox or path restrictions
 
@@ -353,7 +350,7 @@ Use `spawn(sync=true)` when:
 - you want an independent attempt at a bounded subproblem
 - the parent must wait for the answer before planning the next step
 
-Use `delegate` when:
+Use `spawn` with `agent_id` when:
 
 - a named peer agent is clearly better suited for the task
 - that peer has a narrower tool/skill/model setup
@@ -383,9 +380,10 @@ spawn(
 Synchronous handoff to a named peer:
 
 ```text
-delegate(
+spawn(
   agent_id="research",
-  task="Collect three primary-source references for current provider authentication behavior."
+  task="Collect three primary-source references for current provider authentication behavior.",
+  sync=true
 )
 ```
 

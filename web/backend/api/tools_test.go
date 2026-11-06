@@ -190,8 +190,7 @@ func TestHandleListTools_ReportsWebSearchEnabledWhenToolIsOn(t *testing.T) {
 			}
 			cfg.Tools.Web.PreferNative = tt.preferNative
 			cfg.Tools.Web.Provider = "brave"
-			cfg.Tools.Web.Sogou.Enabled = false
-			cfg.Tools.Web.DuckDuckGo.Enabled = false
+					cfg.Tools.Web.DuckDuckGo.Enabled = false
 			cfg.Tools.Web.Brave.Enabled = true
 			cfg.Tools.Web.Brave.SetAPIKeys(nil)
 			if err := config.SaveConfig(configPath, cfg); err != nil {
@@ -239,9 +238,9 @@ func TestHandleGetWebSearchConfig(t *testing.T) {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
 	cfg.Tools.Web.PreferNative = false
-	cfg.Tools.Web.Provider = "sogou"
-	cfg.Tools.Web.Sogou.Enabled = true
-	cfg.Tools.Web.Sogou.MaxResults = 6
+	cfg.Tools.Web.Provider = "duckduckgo"
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
+	cfg.Tools.Web.DuckDuckGo.MaxResults = 6
 	cfg.Tools.Web.Brave.Enabled = true
 	cfg.Tools.Web.Brave.SetAPIKey("brave-test-key")
 	if err := config.SaveConfig(configPath, cfg); err != nil {
@@ -264,11 +263,11 @@ func TestHandleGetWebSearchConfig(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
-	if resp.Provider != "sogou" {
-		t.Fatalf("provider = %q, want sogou", resp.Provider)
+	if resp.Provider != "duckduckgo" {
+		t.Fatalf("provider = %q, want duckduckgo", resp.Provider)
 	}
-	if resp.CurrentService != "sogou" {
-		t.Fatalf("current_service = %q, want sogou", resp.CurrentService)
+	if resp.CurrentService != "duckduckgo" {
+		t.Fatalf("current_service = %q, want duckduckgo", resp.CurrentService)
 	}
 	if !resp.Settings["brave"].APIKeySet {
 		t.Fatalf("brave api_key_set should be true: %#v", resp.Settings["brave"])
@@ -285,7 +284,6 @@ func TestHandleGetWebSearchConfig_DoesNotExposeNativeAsCurrentService(t *testing
 	}
 	cfg.Tools.Web.PreferNative = true
 	cfg.Tools.Web.Provider = "brave"
-	cfg.Tools.Web.Sogou.Enabled = false
 	cfg.Tools.Web.DuckDuckGo.Enabled = false
 	cfg.Tools.Web.Brave.Enabled = true
 	cfg.Tools.Web.Brave.SetAPIKeys(nil)
@@ -343,9 +341,9 @@ func TestHandleUpdateWebSearchConfig(t *testing.T) {
 			"prefer_native":false,
 			"proxy":"http://127.0.0.1:7890",
 			"settings":{
-				"sogou":{"enabled":true,"max_results":4},
+				"duckduckgo":{"enabled":true,"max_results":4},
 				"brave":{"enabled":true,"max_results":7,"api_key":"brave-new-key"},
-				"duckduckgo":{"enabled":false,"max_results":3}
+				"duckduckgo":{"enabled":true,"max_results":4}
 			}
 		}`),
 	)
@@ -369,8 +367,8 @@ func TestHandleUpdateWebSearchConfig(t *testing.T) {
 	if updated.Tools.Web.Proxy != "http://127.0.0.1:7890" {
 		t.Fatalf("proxy = %q", updated.Tools.Web.Proxy)
 	}
-	if !updated.Tools.Web.Sogou.Enabled || updated.Tools.Web.Sogou.MaxResults != 4 {
-		t.Fatalf("sogou config not updated: %#v", updated.Tools.Web.Sogou)
+	if !updated.Tools.Web.DuckDuckGo.Enabled || updated.Tools.Web.DuckDuckGo.MaxResults != 4 {
+		t.Fatalf("duckduckgo config not updated: %#v", updated.Tools.Web.DuckDuckGo)
 	}
 	if !updated.Tools.Web.Brave.Enabled || updated.Tools.Web.Brave.MaxResults != 7 {
 		t.Fatalf("brave config not updated: %#v", updated.Tools.Web.Brave)
@@ -459,7 +457,7 @@ func TestHandleUpdateWebSearchConfig_PreservesAndReplacesMultiKeys(t *testing.T)
 func TestResolveCurrentWebSearchProvider_PrefersConfiguredProvidersInAutoMode(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Tools.Web.Provider = "auto"
-	cfg.Tools.Web.Sogou.Enabled = true
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
 	cfg.Tools.Web.Brave.Enabled = true
 	cfg.Tools.Web.Brave.SetAPIKey("brave-test-key")
 
@@ -472,31 +470,30 @@ func TestResolveCurrentWebSearchProvider_FallsBackWhenExplicitProviderUnavailabl
 	cfg := config.DefaultConfig()
 	cfg.Tools.Web.Provider = "brave"
 	cfg.Tools.Web.Brave.Enabled = true
-	cfg.Tools.Web.Sogou.Enabled = true
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
 
-	if got := resolveCurrentWebSearchProvider(cfg); got != "sogou" {
-		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want sogou", got)
+	if got := resolveCurrentWebSearchProvider(cfg); got != "duckduckgo" {
+		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want duckduckgo", got)
 	}
 }
 
 func TestResolveCurrentWebSearchProvider_FallsBackWhenProviderIsUnknown(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Tools.Web.Provider = "totally_unknown"
-	cfg.Tools.Web.Sogou.Enabled = true
+	cfg.Tools.Web.DuckDuckGo.Enabled = true
 
-	if got := resolveCurrentWebSearchProvider(cfg); got != "sogou" {
-		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want sogou", got)
+	if got := resolveCurrentWebSearchProvider(cfg); got != "duckduckgo" {
+		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want duckduckgo", got)
 	}
 }
 
-func TestResolveCurrentWebSearchProvider_PrefersStableDefaultForSogouAndDuckDuckGo(t *testing.T) {
+func TestResolveCurrentWebSearchProvider_PrefersDuckDuckGoDefault(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Tools.Web.Provider = "auto"
-	cfg.Tools.Web.Sogou.Enabled = true
 	cfg.Tools.Web.DuckDuckGo.Enabled = true
 
-	if got := resolveCurrentWebSearchProvider(cfg); got != "sogou" {
-		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want sogou", got)
+	if got := resolveCurrentWebSearchProvider(cfg); got != "duckduckgo" {
+		t.Fatalf("resolveCurrentWebSearchProvider() = %q, want duckduckgo", got)
 	}
 }
 
@@ -510,7 +507,6 @@ func TestResolveCurrentWebSearchProvider_IgnoresPreferNativeInConfigView(t *test
 	cfg.Agents.Defaults.ModelName = "custom-default"
 	cfg.Tools.Web.PreferNative = true
 	cfg.Tools.Web.Provider = "brave"
-	cfg.Tools.Web.Sogou.Enabled = false
 	cfg.Tools.Web.DuckDuckGo.Enabled = false
 	cfg.Tools.Web.Brave.Enabled = true
 

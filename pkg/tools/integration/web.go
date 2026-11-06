@@ -16,9 +16,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unicode"
-
-	kagiopenapi "github.com/kagisearch/kagi-openapi-golang"
 
 	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/logger"
@@ -27,13 +24,11 @@ import (
 
 const (
 	userAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	sogouUserAgent  = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
 	userAgentHonest = "picoclaw/%s (+https://github.com/sipeed/picoclaw; AI assistant bot)"
 
 	// HTTP client timeouts for web tool providers.
-	searchTimeout     = 10 * time.Second // Brave, Tavily, DuckDuckGo
-	perplexityTimeout = 30 * time.Second // Perplexity (LLM-based, slower)
-	fetchTimeout      = 60 * time.Second // WebFetchTool
+	searchTimeout = 10 * time.Second // Brave, Tavily, DuckDuckGo
+	fetchTimeout  = 60 * time.Second // WebFetchTool
 
 	defaultMaxChars = 50000
 	maxRedirects    = 5
@@ -54,11 +49,6 @@ var (
 	reDDGSnippet = regexp.MustCompile(
 		`<a class="result__snippet[^"]*".*?>([\s\S]*?)</a>`,
 	)
-	reSogouTitle = regexp.MustCompile(
-		`<a\s+class="?resultLink"?\s+href="([^"]+)"[^>]*id="sogou_vr_\d+_\d+"[^>]*>\s*(.*?)\s*</a>`,
-	)
-	reSogouSnippet = regexp.MustCompile(`<div class="clamp\d*[^"]*">\s*(.*?)\s*</div>`)
-	reSogouRealURL = regexp.MustCompile(`url=([^&]+)`)
 )
 
 type APIKeyPool struct {
@@ -110,33 +100,6 @@ type SearchResultItem struct {
 	Published string
 }
 
-func extractSogouURL(href string) string {
-	match := reSogouRealURL.FindStringSubmatch(href)
-	if len(match) < 2 {
-		return ""
-	}
-	decoded, err := url.QueryUnescape(match[1])
-	if err != nil {
-		return ""
-	}
-	return decoded
-}
-
-func applySogouRangeHint(query string, rangeCode string) string {
-	switch rangeCode {
-	case "d":
-		return query + " 最近一天"
-	case "w":
-		return query + " 最近一周"
-	case "m":
-		return query + " 最近一个月"
-	case "y":
-		return query + " 最近一年"
-	default:
-		return query
-	}
-}
-
 func normalizeSearchRange(raw string) (string, error) {
 	rangeCode := strings.ToLower(strings.TrimSpace(raw))
 	switch rangeCode {
@@ -163,21 +126,6 @@ func mapBraveFreshness(rangeCode string) string {
 }
 
 func mapTavilyTimeRange(rangeCode string) string {
-	switch rangeCode {
-	case "d":
-		return "day"
-	case "w":
-		return "week"
-	case "m":
-		return "month"
-	case "y":
-		return "year"
-	default:
-		return ""
-	}
-}
-
-func mapPerplexityRecencyFilter(rangeCode string) string {
 	switch rangeCode {
 	case "d":
 		return "day"
@@ -220,53 +168,6 @@ func mapSearXNGTimeRange(rangeCode string) string {
 	default:
 		return ""
 	}
-}
-
-func mapGLMRecencyFilter(rangeCode string) string {
-	switch rangeCode {
-	case "d":
-		return "oneDay"
-	case "w":
-		return "oneWeek"
-	case "m":
-		return "oneMonth"
-	case "y":
-		return "oneYear"
-	default:
-		return "noLimit"
-	}
-}
-
-func mapBaiduRecencyFilter(rangeCode string) string {
-	switch rangeCode {
-	case "d", "w":
-		// Baidu does not expose a day-level filter. Use the closest supported
-		// window to keep recency bias instead of silently dropping the filter.
-		return "week"
-	case "m":
-		return "month"
-	case "y":
-		return "year"
-	default:
-		return ""
-	}
-}
-
-func mapKagiLensTimeFilter(rangeCode string, now time.Time) *kagiopenapi.SearchRequestLens {
-	lens := kagiopenapi.NewSearchRequestLens()
-	switch rangeCode {
-	case "d":
-		lens.SetTimeRelative("day")
-	case "w":
-		lens.SetTimeRelative("week")
-	case "m":
-		lens.SetTimeRelative("month")
-	case "y":
-		lens.SetTimeAfter(now.AddDate(-1, 0, 0).Format("2006-01-02"))
-	default:
-		return nil
-	}
-	return lens
 }
 
 type BraveSearchProvider struct {
@@ -501,472 +402,8 @@ func (p *TavilySearchProvider) Search(
 	return "", fmt.Errorf("all api keys failed, last error: %w", lastErr)
 }
 
-type KagiSearchProvider struct {
-	keyPool *APIKeyPool
-	baseURL string
-	proxy   string
-	client  *http.Client
-}
-
-func (p *KagiSearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	if p.keyPool == nil || len(p.keyPool.keys) == 0 {
-		return "", errors.New("no API key provided")
-	}
-
-	client := p.client
-	if client == nil {
-		client = &http.Client{Timeout: searchTimeout}
-	}
-
-	apiClient := newKagiAPIClient(client, p.baseURL)
-	searchReq := kagiopenapi.NewSearchRequest(query)
-	searchReq.SetLimit(int32(count))
-	if lens := mapKagiLensTimeFilter(rangeCode, time.Now().UTC()); lens != nil {
-		searchReq.SetLens(*lens)
-	}
-
-	var lastErr error
-	iter := p.keyPool.NewIterator()
-
-	for {
-		apiKey, ok := iter.Next()
-		if !ok {
-			break
-		}
-
-		authCtx := context.WithValue(ctx, kagiopenapi.ContextAccessToken, apiKey)
-		searchResp, httpResp, err := apiClient.SearchAPI.Search(authCtx).SearchRequest(*searchReq).Execute()
-		if httpResp != nil && httpResp.Body != nil {
-			defer httpResp.Body.Close()
-		}
-		if err != nil {
-			if httpResp != nil {
-				if httpResp.StatusCode >= 200 && httpResp.StatusCode < 300 {
-					results, parseErr := fallbackKagiSearchResults(httpResp, count)
-					if parseErr != nil {
-						return "", parseErr
-					}
-					return formatKagiSearchResults(query, results), nil
-				}
-				lastErr = kagiStatusError(httpResp.StatusCode)
-				if httpResp.StatusCode == http.StatusTooManyRequests ||
-					httpResp.StatusCode == http.StatusUnauthorized ||
-					httpResp.StatusCode == http.StatusForbidden ||
-					httpResp.StatusCode >= 500 {
-					continue
-				}
-				return "", lastErr
-			}
-			lastErr = fmt.Errorf("request failed: %w", err)
-			continue
-		}
-
-		results := kagiSearchResults(searchResp, count)
-		if len(results) == 0 {
-			return fmt.Sprintf("No results for: %s", query), nil
-		}
-
-		return formatKagiSearchResults(query, results), nil
-	}
-
-	return "", fmt.Errorf("all api keys failed, last error: %w", lastErr)
-}
-
-func newKagiAPIClient(client *http.Client, baseURL string) *kagiopenapi.APIClient {
-	cfg := kagiopenapi.NewConfiguration()
-	cfg.UserAgent = fmt.Sprintf(userAgentHonest, config.Version)
-	cfg.HTTPClient = client
-	cfg.Servers = kagiopenapi.ServerConfigurations{{
-		URL:         kagiServerURL(baseURL),
-		Description: "Kagi Search API endpoint",
-	}}
-	return kagiopenapi.NewAPIClient(cfg)
-}
-
-func formatKagiSearchResults(query string, results []SearchResultItem) string {
-	if len(results) == 0 {
-		return fmt.Sprintf("No results for: %s", query)
-	}
-	lines := []string{fmt.Sprintf("Results for: %s (via Kagi)", query)}
-	for i, item := range results {
-		title := item.Title
-		if title == "" {
-			title = item.URL
-		}
-		lines = append(lines, fmt.Sprintf("%d. %s\n   %s", i+1, title, item.URL))
-		if item.Published != "" {
-			lines = append(lines, fmt.Sprintf("   Published: %s", item.Published))
-		}
-		if item.Snippet != "" {
-			lines = append(lines, fmt.Sprintf("   %s", item.Snippet))
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-func kagiServerURL(baseURL string) string {
-	baseURL = strings.TrimSpace(baseURL)
-	if baseURL == "" {
-		return "https://kagi.com/api/v1"
-	}
-	parsed, err := url.Parse(baseURL)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return strings.TrimSuffix(baseURL, "/")
-	}
-	parsed.RawQuery = ""
-	parsed.Fragment = ""
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	if strings.HasSuffix(parsed.Path, "/search") {
-		parsed.Path = strings.TrimSuffix(parsed.Path, "/search")
-	}
-	if parsed.Path == "" {
-		parsed.Path = "/"
-	}
-	return strings.TrimRight(parsed.String(), "/")
-}
-
-func kagiStatusError(statusCode int) error {
-	switch statusCode {
-	case http.StatusUnauthorized:
-		return fmt.Errorf("Kagi Search API authentication failed (status %d)", statusCode)
-	case http.StatusForbidden:
-		return fmt.Errorf("Kagi Search API request forbidden (status %d)", statusCode)
-	case http.StatusTooManyRequests:
-		return fmt.Errorf("Kagi Search API rate limited (status %d)", statusCode)
-	default:
-		if statusCode >= 500 {
-			return fmt.Errorf("Kagi Search API server error (status %d)", statusCode)
-		}
-		return fmt.Errorf("Kagi Search API error (status %d)", statusCode)
-	}
-}
-
-type kagiFallbackResult struct {
-	Type      int    `json:"t"`
-	URL       string `json:"url"`
-	Title     string `json:"title"`
-	Snippet   string `json:"snippet"`
-	Time      string `json:"time"`
-	Published string `json:"published"`
-}
-
-func fallbackKagiSearchResults(resp *http.Response, count int) ([]SearchResultItem, error) {
-	if resp == nil || resp.Body == nil {
-		return nil, fmt.Errorf("failed to parse response: empty response body")
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	return parseFallbackKagiSearchResults(body, count)
-}
-
-func parseFallbackKagiSearchResults(body []byte, count int) ([]SearchResultItem, error) {
-	if count <= 0 {
-		count = 10
-	}
-	var envelope struct {
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	data := bytes.TrimSpace(envelope.Data)
-	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
-		return nil, nil
-	}
-
-	results := make([]SearchResultItem, 0, count)
-	switch data[0] {
-	case '{':
-		var modern struct {
-			Search []kagiFallbackResult `json:"search"`
-		}
-		if err := json.Unmarshal(data, &modern); err != nil {
-			return nil, fmt.Errorf("failed to parse response: %w", err)
-		}
-		appendFallbackKagiResults(&results, modern.Search, count, false)
-	case '[':
-		var legacy []kagiFallbackResult
-		if err := json.Unmarshal(data, &legacy); err != nil {
-			return nil, fmt.Errorf("failed to parse response: %w", err)
-		}
-		appendFallbackKagiResults(&results, legacy, count, true)
-	default:
-		return nil, fmt.Errorf("failed to parse response: unexpected data shape")
-	}
-	return results, nil
-}
-
-func appendFallbackKagiResults(
-	results *[]SearchResultItem,
-	items []kagiFallbackResult,
-	count int,
-	requireLegacyType bool,
-) {
-	for _, item := range items {
-		if len(*results) >= count {
-			return
-		}
-		if requireLegacyType && item.Type != 0 {
-			continue
-		}
-		urlStr := strings.TrimSpace(item.URL)
-		if urlStr == "" {
-			continue
-		}
-		published := strings.TrimSpace(item.Published)
-		if published == "" {
-			published = strings.TrimSpace(item.Time)
-		}
-		*results = append(*results, SearchResultItem{
-			Title:     cleanSearchText(item.Title),
-			URL:       urlStr,
-			Snippet:   cleanSearchText(item.Snippet),
-			Published: published,
-		})
-	}
-}
-
-func kagiSearchResults(searchResp *kagiopenapi.Search200Response, count int) []SearchResultItem {
-	if count <= 0 {
-		count = 10
-	}
-	if searchResp == nil || searchResp.Data == nil {
-		return nil
-	}
-
-	results := make([]SearchResultItem, 0, count)
-	for _, item := range searchResp.Data.Search {
-		if len(results) >= count {
-			break
-		}
-		urlStr := strings.TrimSpace(item.GetUrl())
-		if urlStr == "" {
-			continue
-		}
-		results = append(results, SearchResultItem{
-			Title:     cleanSearchText(item.GetTitle()),
-			URL:       urlStr,
-			Snippet:   cleanSearchText(item.GetSnippet()),
-			Published: strings.TrimSpace(item.GetTime()),
-		})
-	}
-	return results
-}
-
 func cleanSearchText(content string) string {
 	return strings.TrimSpace(html.UnescapeString(stripTags(content)))
-}
-
-type SogouSearchProvider struct {
-	proxy  string
-	client *http.Client
-}
-
-type GeminiSearchProvider struct {
-	apiKey string
-	model  string
-	proxy  string
-	client *http.Client
-}
-
-func (p *GeminiSearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	if strings.TrimSpace(p.apiKey) == "" {
-		return "", errors.New("no API key provided")
-	}
-	model := strings.TrimSpace(p.model)
-	if model == "" {
-		model = "gemini-2.5-flash"
-	}
-
-	payload := map[string]any{
-		"contents": []map[string]any{{
-			"parts": []map[string]string{{"text": query}},
-		}},
-		"tools": []map[string]any{{"google_search": map[string]any{}}},
-	}
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	endpoint := fmt.Sprintf(
-		"https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
-		url.PathEscape(model),
-	)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Goog-Api-Key", p.apiKey)
-	req.Header.Set("User-Agent", fmt.Sprintf(userAgentHonest, config.Version))
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("gemini search api error (status %d): %s", resp.StatusCode, string(body))
-	}
-
-	var searchResp struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-			GroundingMetadata struct {
-				GroundingChunks []struct {
-					Web struct {
-						URI   string `json:"uri"`
-						Title string `json:"title"`
-					} `json:"web"`
-				} `json:"groundingChunks"`
-			} `json:"groundingMetadata"`
-		} `json:"candidates"`
-	}
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-	if len(searchResp.Candidates) == 0 {
-		return fmt.Sprintf("No results for: %s", query), nil
-	}
-
-	candidate := searchResp.Candidates[0]
-	lines := []string{fmt.Sprintf("Results for: %s (via Gemini Google Search)", query)}
-	for _, part := range candidate.Content.Parts {
-		if strings.TrimSpace(part.Text) != "" {
-			lines = append(lines, strings.TrimSpace(part.Text))
-		}
-	}
-	citationCount := 0
-	for _, chunk := range candidate.GroundingMetadata.GroundingChunks {
-		if strings.TrimSpace(chunk.Web.URI) == "" {
-			continue
-		}
-		citationCount++
-		title := strings.TrimSpace(chunk.Web.Title)
-		if title == "" {
-			title = chunk.Web.URI
-		}
-		lines = append(lines, fmt.Sprintf("%d. %s\n   %s", citationCount, title, chunk.Web.URI))
-		if citationCount >= count {
-			break
-		}
-	}
-	return strings.Join(lines, "\n"), nil
-}
-
-func (p *SogouSearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	const sogouWAPURL = "https://wap.sogou.com/web/searchList.jsp"
-
-	results := make([]SearchResultItem, 0, count)
-	seenURLs := make(map[string]bool)
-	maxPages := min(3, (count+1)/2+1)
-
-	for page := 1; page <= maxPages && len(results) < count; page++ {
-		params := url.Values{}
-		params.Set("keyword", applySogouRangeHint(query, rangeCode))
-		params.Set("v", "5")
-		params.Set("p", fmt.Sprintf("%d", page))
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, sogouWAPURL+"?"+params.Encode(), nil)
-		if err != nil {
-			return "", fmt.Errorf("failed to create request: %w", err)
-		}
-		req.Header.Set("User-Agent", sogouUserAgent)
-
-		resp, err := p.client.Do(req)
-		if err != nil {
-			return "", fmt.Errorf("request failed: %w", err)
-		}
-
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		_ = resp.Body.Close()
-		if err != nil {
-			return "", fmt.Errorf("failed to read response: %w", err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("Sogou returned status %d", resp.StatusCode)
-		}
-
-		html := string(body)
-		if len(html) < 200 {
-			break
-		}
-
-		matches := reSogouTitle.FindAllStringSubmatch(html, -1)
-		for _, match := range matches {
-			if len(match) < 3 {
-				continue
-			}
-
-			title := stripTags(match[2])
-			link := extractSogouURL(match[1])
-			if title == "" || link == "" || seenURLs[link] {
-				continue
-			}
-			seenURLs[link] = true
-
-			start := strings.Index(html, match[0])
-			snippet := ""
-			if start >= 0 {
-				after := html[start+len(match[0]):]
-				if len(after) > 2000 {
-					after = after[:2000]
-				}
-				if snippetMatch := reSogouSnippet.FindStringSubmatch(after); len(snippetMatch) > 1 {
-					snippet = stripTags(snippetMatch[1])
-				}
-			}
-
-			results = append(results, SearchResultItem{
-				Title:   title,
-				URL:     link,
-				Snippet: snippet,
-			})
-			if len(results) >= count {
-				break
-			}
-		}
-	}
-
-	if len(results) == 0 {
-		return fmt.Sprintf("No results for: %s", query), nil
-	}
-
-	lines := []string{fmt.Sprintf("Results for: %s (via Sogou)", query)}
-	for i, item := range results {
-		lines = append(lines, fmt.Sprintf("%d. %s\n   %s", i+1, item.Title, item.URL))
-		if item.Snippet != "" {
-			lines = append(lines, fmt.Sprintf("   %s", item.Snippet))
-		}
-	}
-	return strings.Join(lines, "\n"), nil
 }
 
 type DuckDuckGoSearchProvider struct {
@@ -1072,125 +509,6 @@ func stripTags(content string) string {
 	return reTags.ReplaceAllString(content, "")
 }
 
-type PerplexitySearchProvider struct {
-	keyPool *APIKeyPool
-	proxy   string
-	client  *http.Client
-}
-
-func (p *PerplexitySearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	if p.keyPool == nil || len(p.keyPool.keys) == 0 {
-		return "", errors.New("no API key provided")
-	}
-
-	searchURL := "https://api.perplexity.ai/chat/completions"
-
-	var lastErr error
-	iter := p.keyPool.NewIterator()
-
-	for {
-		apiKey, ok := iter.Next()
-		if !ok {
-			break
-		}
-
-		payload := map[string]any{
-			"model": "sonar",
-			"messages": []map[string]string{
-				{
-					"role":    "system",
-					"content": "You are a search assistant. Provide concise search results with titles, URLs, and brief descriptions in the following format:\n1. Title\n   URL\n   Description\n\nDo not add extra commentary.",
-				},
-				{
-					"role": "user",
-					"content": fmt.Sprintf(
-						"Search for: %s. Provide up to %d relevant results.",
-						query,
-						count,
-					),
-				},
-			},
-			"max_tokens": 1000,
-		}
-		if recencyFilter := mapPerplexityRecencyFilter(rangeCode); recencyFilter != "" {
-			payload["search_recency_filter"] = recencyFilter
-		}
-
-		payloadBytes, err := json.Marshal(payload)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal request: %w", err)
-		}
-
-		req, err := http.NewRequestWithContext(
-			ctx,
-			"POST",
-			searchURL,
-			strings.NewReader(string(payloadBytes)),
-		)
-		if err != nil {
-			return "", fmt.Errorf("failed to create request: %w", err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		req.Header.Set("User-Agent", userAgent)
-
-		resp, err := p.client.Do(req)
-		if err != nil {
-			lastErr = fmt.Errorf("request failed: %w", err)
-			continue
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-
-		if err != nil {
-			lastErr = fmt.Errorf("failed to read response: %w", err)
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("Perplexity API error: %s", string(body))
-			if resp.StatusCode == http.StatusTooManyRequests ||
-				resp.StatusCode == http.StatusUnauthorized ||
-				resp.StatusCode == http.StatusForbidden ||
-				resp.StatusCode >= 500 {
-				continue
-			}
-			return "", lastErr
-		}
-
-		var searchResp struct {
-			Choices []struct {
-				Message struct {
-					Content string `json:"content"`
-				} `json:"message"`
-			} `json:"choices"`
-		}
-
-		if err := json.Unmarshal(body, &searchResp); err != nil {
-			return "", fmt.Errorf("failed to parse response: %w", err)
-		}
-
-		if len(searchResp.Choices) == 0 {
-			return fmt.Sprintf("No results for: %s", query), nil
-		}
-
-		return fmt.Sprintf(
-			"Results for: %s (via Perplexity)\n%s",
-			query,
-			searchResp.Choices[0].Message.Content,
-		), nil
-	}
-
-	return "", fmt.Errorf("all api keys failed, last error: %w", lastErr)
-}
-
 type SearXNGSearchProvider struct {
 	baseURL string
 	proxy   string
@@ -1270,193 +588,6 @@ func (p *SearXNGSearchProvider) Search(
 	return b.String(), nil
 }
 
-type GLMSearchProvider struct {
-	apiKey       string
-	baseURL      string
-	searchEngine string
-	proxy        string
-	client       *http.Client
-}
-
-func (p *GLMSearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	if p.apiKey == "" {
-		return "", errors.New("no API key provided")
-	}
-
-	searchURL := p.baseURL
-	if searchURL == "" {
-		searchURL = "https://open.bigmodel.cn/api/paas/v4/web_search"
-	}
-
-	payload := map[string]any{
-		"search_query":  query,
-		"search_engine": p.searchEngine,
-		"search_intent": false,
-		"count":         count,
-		"content_size":  "medium",
-	}
-	if recencyFilter := mapGLMRecencyFilter(rangeCode); recencyFilter != "" {
-		payload["search_recency_filter"] = recencyFilter
-	}
-
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", searchURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GLM Search API error (status %d): %s", resp.StatusCode, string(body))
-	}
-
-	var searchResp struct {
-		SearchResult []struct {
-			Title   string `json:"title"`
-			Content string `json:"content"`
-			Link    string `json:"link"`
-		} `json:"search_result"`
-	}
-
-	if err := json.Unmarshal(body, &searchResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	results := searchResp.SearchResult
-	if len(results) == 0 {
-		return fmt.Sprintf("No results for: %s", query), nil
-	}
-
-	var lines []string
-	lines = append(lines, fmt.Sprintf("Results for: %s (via GLM Search)", query))
-	for i, item := range results {
-		if i >= count {
-			break
-		}
-		lines = append(lines, fmt.Sprintf("%d. %s\n   %s", i+1, item.Title, item.Link))
-		if item.Content != "" {
-			lines = append(lines, fmt.Sprintf("   %s", item.Content))
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
-}
-
-type BaiduSearchProvider struct {
-	apiKey  string
-	baseURL string
-	proxy   string
-	client  *http.Client
-}
-
-func (p *BaiduSearchProvider) Search(
-	ctx context.Context,
-	query string,
-	count int,
-	rangeCode string,
-) (string, error) {
-	if p.apiKey == "" {
-		return "", errors.New("no API key provided")
-	}
-
-	searchURL := p.baseURL
-	if searchURL == "" {
-		searchURL = "https://qianfan.baidubce.com/v2/ai_search/web_search"
-	}
-
-	payload := map[string]any{
-		"messages": []map[string]string{
-			{
-				"role":    "user",
-				"content": query,
-			},
-		},
-		"search_source":        "baidu_search_v2",
-		"resource_type_filter": []map[string]any{{"type": "web", "top_k": count}},
-	}
-	if recencyFilter := mapBaiduRecencyFilter(rangeCode); recencyFilter != "" {
-		payload["search_recency_filter"] = recencyFilter
-	}
-
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", searchURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("baidu search request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("baidu search API error %d: %s", resp.StatusCode, string(body))
-	}
-
-	var result struct {
-		References []struct {
-			Title   string `json:"title"`
-			URL     string `json:"url"`
-			Content string `json:"content"`
-		} `json:"references"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if len(result.References) == 0 {
-		return fmt.Sprintf("No results for: %s", query), nil
-	}
-
-	lines := []string{fmt.Sprintf("Results for: %s (via Baidu Search)", query)}
-	for i, item := range result.References {
-		if i >= count {
-			break
-		}
-		lines = append(lines, fmt.Sprintf("%d. %s\n   %s", i+1, item.Title, item.URL))
-		if item.Content != "" {
-			lines = append(lines, fmt.Sprintf("   %s", item.Content))
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
-}
-
 type WebSearchTool struct {
 	provider         SearchProvider
 	maxResults       int
@@ -1464,82 +595,38 @@ type WebSearchTool struct {
 }
 
 type WebSearchToolOptions struct {
-	Provider              string
-	BraveAPIKeys          []string
-	BraveMaxResults       int
-	BraveEnabled          bool
-	TavilyAPIKeys         []string
-	TavilyBaseURL         string
-	TavilyMaxResults      int
-	TavilyEnabled         bool
-	KagiAPIKeys           []string
-	KagiBaseURL           string
-	KagiMaxResults        int
-	KagiEnabled           bool
-	SogouMaxResults       int
-	SogouEnabled          bool
-	DuckDuckGoMaxResults  int
-	DuckDuckGoEnabled     bool
-	GeminiAPIKey          string
-	GeminiModel           string
-	GeminiMaxResults      int
-	GeminiEnabled         bool
-	PerplexityAPIKeys     []string
-	PerplexityMaxResults  int
-	PerplexityEnabled     bool
-	SearXNGBaseURL        string
-	SearXNGMaxResults     int
-	SearXNGEnabled        bool
-	GLMSearchAPIKey       string
-	GLMSearchBaseURL      string
-	GLMSearchEngine       string
-	GLMSearchMaxResults   int
-	GLMSearchEnabled      bool
-	BaiduSearchAPIKey     string
-	BaiduSearchBaseURL    string
-	BaiduSearchMaxResults int
-	BaiduSearchEnabled    bool
-	Proxy                 string
+	Provider             string
+	BraveAPIKeys         []string
+	BraveMaxResults      int
+	BraveEnabled         bool
+	TavilyAPIKeys        []string
+	TavilyBaseURL        string
+	TavilyMaxResults     int
+	TavilyEnabled        bool
+	DuckDuckGoMaxResults int
+	DuckDuckGoEnabled    bool
+	SearXNGBaseURL       string
+	SearXNGMaxResults    int
+	SearXNGEnabled       bool
+	Proxy                string
 }
 
 func WebSearchToolOptionsFromConfig(cfg *config.Config) WebSearchToolOptions {
 	return WebSearchToolOptions{
-		Provider:              cfg.Tools.Web.Provider,
-		BraveAPIKeys:          cfg.Tools.Web.Brave.APIKeys.Values(),
-		BraveMaxResults:       cfg.Tools.Web.Brave.MaxResults,
-		BraveEnabled:          cfg.Tools.Web.Brave.Enabled,
-		TavilyAPIKeys:         cfg.Tools.Web.Tavily.APIKeys.Values(),
-		TavilyBaseURL:         cfg.Tools.Web.Tavily.BaseURL,
-		TavilyMaxResults:      cfg.Tools.Web.Tavily.MaxResults,
-		TavilyEnabled:         cfg.Tools.Web.Tavily.Enabled,
-		KagiAPIKeys:           cfg.Tools.Web.Kagi.APIKeys.Values(),
-		KagiBaseURL:           cfg.Tools.Web.Kagi.BaseURL,
-		KagiMaxResults:        cfg.Tools.Web.Kagi.MaxResults,
-		KagiEnabled:           cfg.Tools.Web.Kagi.Enabled,
-		SogouMaxResults:       cfg.Tools.Web.Sogou.MaxResults,
-		SogouEnabled:          cfg.Tools.Web.Sogou.Enabled,
-		DuckDuckGoMaxResults:  cfg.Tools.Web.DuckDuckGo.MaxResults,
-		DuckDuckGoEnabled:     cfg.Tools.Web.DuckDuckGo.Enabled,
-		GeminiAPIKey:          cfg.Tools.Web.Gemini.APIKey.String(),
-		GeminiModel:           cfg.Tools.Web.Gemini.Model,
-		GeminiMaxResults:      cfg.Tools.Web.Gemini.MaxResults,
-		GeminiEnabled:         cfg.Tools.Web.Gemini.Enabled,
-		PerplexityAPIKeys:     cfg.Tools.Web.Perplexity.APIKeys.Values(),
-		PerplexityMaxResults:  cfg.Tools.Web.Perplexity.MaxResults,
-		PerplexityEnabled:     cfg.Tools.Web.Perplexity.Enabled,
-		SearXNGBaseURL:        cfg.Tools.Web.SearXNG.BaseURL,
-		SearXNGMaxResults:     cfg.Tools.Web.SearXNG.MaxResults,
-		SearXNGEnabled:        cfg.Tools.Web.SearXNG.Enabled,
-		GLMSearchAPIKey:       cfg.Tools.Web.GLMSearch.APIKey.String(),
-		GLMSearchBaseURL:      cfg.Tools.Web.GLMSearch.BaseURL,
-		GLMSearchEngine:       cfg.Tools.Web.GLMSearch.SearchEngine,
-		GLMSearchMaxResults:   cfg.Tools.Web.GLMSearch.MaxResults,
-		GLMSearchEnabled:      cfg.Tools.Web.GLMSearch.Enabled,
-		BaiduSearchAPIKey:     cfg.Tools.Web.BaiduSearch.APIKey.String(),
-		BaiduSearchBaseURL:    cfg.Tools.Web.BaiduSearch.BaseURL,
-		BaiduSearchMaxResults: cfg.Tools.Web.BaiduSearch.MaxResults,
-		BaiduSearchEnabled:    cfg.Tools.Web.BaiduSearch.Enabled,
-		Proxy:                 cfg.Tools.Web.Proxy,
+		Provider:             cfg.Tools.Web.Provider,
+		BraveAPIKeys:         cfg.Tools.Web.Brave.APIKeys.Values(),
+		BraveMaxResults:      cfg.Tools.Web.Brave.MaxResults,
+		BraveEnabled:         cfg.Tools.Web.Brave.Enabled,
+		TavilyAPIKeys:        cfg.Tools.Web.Tavily.APIKeys.Values(),
+		TavilyBaseURL:        cfg.Tools.Web.Tavily.BaseURL,
+		TavilyMaxResults:     cfg.Tools.Web.Tavily.MaxResults,
+		TavilyEnabled:        cfg.Tools.Web.Tavily.Enabled,
+		DuckDuckGoMaxResults: cfg.Tools.Web.DuckDuckGo.MaxResults,
+		DuckDuckGoEnabled:    cfg.Tools.Web.DuckDuckGo.Enabled,
+		SearXNGBaseURL:       cfg.Tools.Web.SearXNG.BaseURL,
+		SearXNGMaxResults:    cfg.Tools.Web.SearXNG.MaxResults,
+		SearXNGEnabled:       cfg.Tools.Web.SearXNG.Enabled,
+		Proxy:                cfg.Tools.Web.Proxy,
 	}
 }
 
@@ -1553,19 +640,13 @@ func ResolveWebSearchProviderName(opts WebSearchToolOptions, query string) (stri
 
 var (
 	knownWebSearchProviders = []string{
-		"sogou",
-		"duckduckgo",
-		"gemini",
 		"brave",
 		"tavily",
-		"kagi",
-		"perplexity",
 		"searxng",
-		"glm_search",
-		"baidu_search",
+		"duckduckgo",
 	}
-	autoPrimaryWebSearchProviders  = []string{"perplexity", "brave", "kagi", "searxng", "tavily", "gemini"}
-	autoFallbackWebSearchProviders = []string{"baidu_search", "glm_search"}
+	autoPrimaryWebSearchProviders  = []string{"brave", "tavily", "searxng"}
+	autoFallbackWebSearchProviders = []string{"duckduckgo"}
 )
 
 func isKnownWebSearchProvider(name string) bool {
@@ -1580,26 +661,14 @@ func isKnownWebSearchProvider(name string) bool {
 
 func (opts WebSearchToolOptions) providerReady(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "sogou":
-		return opts.SogouEnabled
 	case "duckduckgo":
 		return opts.DuckDuckGoEnabled
-	case "gemini":
-		return opts.GeminiEnabled && strings.TrimSpace(opts.GeminiAPIKey) != ""
 	case "brave":
 		return opts.BraveEnabled && len(opts.BraveAPIKeys) > 0
 	case "tavily":
 		return opts.TavilyEnabled && len(opts.TavilyAPIKeys) > 0
-	case "kagi":
-		return opts.KagiEnabled && len(opts.KagiAPIKeys) > 0
-	case "perplexity":
-		return opts.PerplexityEnabled && len(opts.PerplexityAPIKeys) > 0
 	case "searxng":
 		return opts.SearXNGEnabled && strings.TrimSpace(opts.SearXNGBaseURL) != ""
-	case "glm_search":
-		return opts.GLMSearchEnabled && strings.TrimSpace(opts.GLMSearchAPIKey) != ""
-	case "baidu_search":
-		return opts.BaiduSearchEnabled && strings.TrimSpace(opts.BaiduSearchAPIKey) != ""
 	default:
 		return false
 	}
@@ -1621,26 +690,10 @@ func (opts WebSearchToolOptions) resolveProviderName(query string) (string, erro
 		return providerName, nil
 	}
 
-	sogouReady := opts.providerReady("sogou")
-	duckReady := opts.providerReady("duckduckgo")
-
 	for _, name := range autoPrimaryWebSearchProviders {
 		if opts.providerReady(name) {
 			return name, nil
 		}
-	}
-
-	if sogouReady && duckReady {
-		if prefersDuckDuckGoQuery(query) {
-			return "duckduckgo", nil
-		}
-		return "sogou", nil
-	}
-	if sogouReady {
-		return "sogou", nil
-	}
-	if duckReady {
-		return "duckduckgo", nil
 	}
 
 	for _, name := range autoFallbackWebSearchProviders {
@@ -1656,39 +709,6 @@ func (opts WebSearchToolOptions) providerByName(name string) (SearchProvider, in
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "", "auto":
 		return nil, 0, nil
-	case "sogou":
-		if !opts.providerReady("sogou") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, searchTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for Sogou: %w", err)
-		}
-		maxResults := 10
-		if opts.SogouMaxResults > 0 {
-			maxResults = min(opts.SogouMaxResults, 10)
-		}
-		return &SogouSearchProvider{
-			proxy:  opts.Proxy,
-			client: client,
-		}, maxResults, nil
-	case "perplexity":
-		if !opts.providerReady("perplexity") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, perplexityTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for Perplexity: %w", err)
-		}
-		maxResults := 10
-		if opts.PerplexityMaxResults > 0 {
-			maxResults = min(opts.PerplexityMaxResults, 10)
-		}
-		return &PerplexitySearchProvider{
-			keyPool: NewAPIKeyPool(opts.PerplexityAPIKeys),
-			proxy:   opts.Proxy,
-			client:  client,
-		}, maxResults, nil
 	case "brave":
 		if !opts.providerReady("brave") {
 			return nil, 0, nil
@@ -1705,24 +725,6 @@ func (opts WebSearchToolOptions) providerByName(name string) (SearchProvider, in
 			keyPool: NewAPIKeyPool(opts.BraveAPIKeys),
 			proxy:   opts.Proxy,
 			client:  client,
-		}, maxResults, nil
-	case "gemini":
-		if !opts.providerReady("gemini") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, searchTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for Gemini: %w", err)
-		}
-		maxResults := 10
-		if opts.GeminiMaxResults > 0 {
-			maxResults = min(opts.GeminiMaxResults, 10)
-		}
-		return &GeminiSearchProvider{
-			apiKey: opts.GeminiAPIKey,
-			model:  opts.GeminiModel,
-			proxy:  opts.Proxy,
-			client: client,
 		}, maxResults, nil
 	case "searxng":
 		if !opts.providerReady("searxng") {
@@ -1759,24 +761,6 @@ func (opts WebSearchToolOptions) providerByName(name string) (SearchProvider, in
 			proxy:   opts.Proxy,
 			client:  client,
 		}, maxResults, nil
-	case "kagi":
-		if !opts.providerReady("kagi") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, searchTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for Kagi: %w", err)
-		}
-		maxResults := 10
-		if opts.KagiMaxResults > 0 {
-			maxResults = min(opts.KagiMaxResults, 10)
-		}
-		return &KagiSearchProvider{
-			keyPool: NewAPIKeyPool(opts.KagiAPIKeys),
-			baseURL: opts.KagiBaseURL,
-			proxy:   opts.Proxy,
-			client:  client,
-		}, maxResults, nil
 	case "duckduckgo":
 		if !opts.providerReady("duckduckgo") {
 			return nil, 0, nil
@@ -1793,82 +777,9 @@ func (opts WebSearchToolOptions) providerByName(name string) (SearchProvider, in
 			proxy:  opts.Proxy,
 			client: client,
 		}, maxResults, nil
-	case "baidu_search":
-		if !opts.providerReady("baidu_search") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, perplexityTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for Baidu Search: %w", err)
-		}
-		maxResults := 10
-		if opts.BaiduSearchMaxResults > 0 {
-			maxResults = min(opts.BaiduSearchMaxResults, 10)
-		}
-		return &BaiduSearchProvider{
-			apiKey:  opts.BaiduSearchAPIKey,
-			baseURL: opts.BaiduSearchBaseURL,
-			proxy:   opts.Proxy,
-			client:  client,
-		}, maxResults, nil
-	case "glm_search":
-		if !opts.providerReady("glm_search") {
-			return nil, 0, nil
-		}
-		client, err := utils.CreateHTTPClient(opts.Proxy, searchTimeout)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to create HTTP client for GLM Search: %w", err)
-		}
-		searchEngine := opts.GLMSearchEngine
-		if searchEngine == "" {
-			searchEngine = "search_std"
-		}
-		maxResults := 10
-		if opts.GLMSearchMaxResults > 0 {
-			maxResults = min(opts.GLMSearchMaxResults, 10)
-		}
-		return &GLMSearchProvider{
-			apiKey:       opts.GLMSearchAPIKey,
-			baseURL:      opts.GLMSearchBaseURL,
-			searchEngine: searchEngine,
-			proxy:        opts.Proxy,
-			client:       client,
-		}, maxResults, nil
 	default:
 		return nil, 0, fmt.Errorf("unknown web search provider %q", name)
 	}
-}
-
-func containsHan(text string) bool {
-	for _, r := range text {
-		if unicode.Is(unicode.Han, r) {
-			return true
-		}
-	}
-	return false
-}
-
-func containsLatinLetter(text string) bool {
-	for _, r := range text {
-		if unicode.IsLetter(r) && unicode.In(r, unicode.Latin) {
-			return true
-		}
-	}
-	return false
-}
-
-func prefersDuckDuckGoQuery(text string) bool {
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return false
-	}
-	if containsHan(trimmed) {
-		return false
-	}
-	if containsLatinLetter(trimmed) {
-		return true
-	}
-	return false
 }
 
 func (opts WebSearchToolOptions) buildProviderResolver() (func(query string) (SearchProvider, int), error) {

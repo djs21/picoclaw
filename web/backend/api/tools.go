@@ -300,21 +300,9 @@ func (h *Handler) handleUpdateWebSearchConfig(w http.ResponseWriter, r *http.Req
 	cfg.Tools.Web.PreferNative = req.PreferNative
 	cfg.Tools.Web.Proxy = strings.TrimSpace(req.Proxy)
 
-	if settings, ok := req.Settings["sogou"]; ok {
-		cfg.Tools.Web.Sogou.Enabled = settings.Enabled
-		cfg.Tools.Web.Sogou.MaxResults = settings.MaxResults
-	}
 	if settings, ok := req.Settings["duckduckgo"]; ok {
 		cfg.Tools.Web.DuckDuckGo.Enabled = settings.Enabled
 		cfg.Tools.Web.DuckDuckGo.MaxResults = settings.MaxResults
-	}
-	if settings, ok := req.Settings["gemini"]; ok {
-		cfg.Tools.Web.Gemini.Enabled = settings.Enabled
-		cfg.Tools.Web.Gemini.MaxResults = settings.MaxResults
-		cfg.Tools.Web.Gemini.Model = strings.TrimSpace(settings.Model)
-		if key := strings.TrimSpace(settings.APIKey); key != "" {
-			cfg.Tools.Web.Gemini.APIKey = *config.NewSecureString(key)
-		}
 	}
 	if settings, ok := req.Settings["brave"]; ok {
 		cfg.Tools.Web.Brave.Enabled = settings.Enabled
@@ -331,41 +319,10 @@ func (h *Handler) handleUpdateWebSearchConfig(w http.ResponseWriter, r *http.Req
 			cfg.Tools.Web.Tavily.SetAPIKeys(keys)
 		}
 	}
-	if settings, ok := req.Settings["kagi"]; ok {
-		cfg.Tools.Web.Kagi.Enabled = settings.Enabled
-		cfg.Tools.Web.Kagi.MaxResults = settings.MaxResults
-		cfg.Tools.Web.Kagi.BaseURL = strings.TrimSpace(settings.BaseURL)
-		if keys, ok := normalizeWebSearchAPIKeys(settings.APIKeys, settings.APIKey); ok {
-			cfg.Tools.Web.Kagi.SetAPIKeys(keys)
-		}
-	}
-	if settings, ok := req.Settings["perplexity"]; ok {
-		cfg.Tools.Web.Perplexity.Enabled = settings.Enabled
-		cfg.Tools.Web.Perplexity.MaxResults = settings.MaxResults
-		if keys, ok := normalizeWebSearchAPIKeys(settings.APIKeys, settings.APIKey); ok {
-			cfg.Tools.Web.Perplexity.APIKeys = config.SimpleSecureStrings(keys...)
-		}
-	}
 	if settings, ok := req.Settings["searxng"]; ok {
 		cfg.Tools.Web.SearXNG.Enabled = settings.Enabled
 		cfg.Tools.Web.SearXNG.MaxResults = settings.MaxResults
 		cfg.Tools.Web.SearXNG.BaseURL = strings.TrimSpace(settings.BaseURL)
-	}
-	if settings, ok := req.Settings["glm_search"]; ok {
-		cfg.Tools.Web.GLMSearch.Enabled = settings.Enabled
-		cfg.Tools.Web.GLMSearch.MaxResults = settings.MaxResults
-		cfg.Tools.Web.GLMSearch.BaseURL = strings.TrimSpace(settings.BaseURL)
-		if key := strings.TrimSpace(settings.APIKey); key != "" {
-			cfg.Tools.Web.GLMSearch.APIKey = *config.NewSecureString(key)
-		}
-	}
-	if settings, ok := req.Settings["baidu_search"]; ok {
-		cfg.Tools.Web.BaiduSearch.Enabled = settings.Enabled
-		cfg.Tools.Web.BaiduSearch.MaxResults = settings.MaxResults
-		cfg.Tools.Web.BaiduSearch.BaseURL = strings.TrimSpace(settings.BaseURL)
-		if key := strings.TrimSpace(settings.APIKey); key != "" {
-			cfg.Tools.Web.BaiduSearch.APIKey = *config.NewSecureString(key)
-		}
 	}
 
 	if err := config.SaveConfig(h.configPath, cfg); err != nil {
@@ -383,16 +340,10 @@ func normalizeWebSearchProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case "", "auto":
 		return "auto"
-	case "sogou",
-		"brave",
+	case "brave",
 		"tavily",
-		"kagi",
 		"duckduckgo",
-		"gemini",
-		"perplexity",
-		"searxng",
-		"glm_search",
-		"baidu_search":
+		"searxng":
 		return strings.ToLower(strings.TrimSpace(provider))
 	default:
 		return ""
@@ -428,19 +379,9 @@ func buildWebSearchConfigResponse(cfg *config.Config) webSearchConfigResponse {
 	opts := picotools.WebSearchToolOptionsFromConfig(cfg)
 	current := resolveCurrentWebSearchProvider(cfg)
 	settings := map[string]webSearchProviderConfig{
-		"sogou": {
-			Enabled:    cfg.Tools.Web.Sogou.Enabled,
-			MaxResults: cfg.Tools.Web.Sogou.MaxResults,
-		},
 		"duckduckgo": {
 			Enabled:    cfg.Tools.Web.DuckDuckGo.Enabled,
 			MaxResults: cfg.Tools.Web.DuckDuckGo.MaxResults,
-		},
-		"gemini": {
-			Enabled:    cfg.Tools.Web.Gemini.Enabled,
-			MaxResults: cfg.Tools.Web.Gemini.MaxResults,
-			Model:      cfg.Tools.Web.Gemini.Model,
-			APIKeySet:  cfg.Tools.Web.Gemini.APIKey.String() != "",
 		},
 		"brave": {
 			Enabled:    cfg.Tools.Web.Brave.Enabled,
@@ -453,33 +394,10 @@ func buildWebSearchConfigResponse(cfg *config.Config) webSearchConfigResponse {
 			BaseURL:    cfg.Tools.Web.Tavily.BaseURL,
 			APIKeySet:  len(cfg.Tools.Web.Tavily.APIKeys.Values()) > 0,
 		},
-		"kagi": {
-			Enabled:    cfg.Tools.Web.Kagi.Enabled,
-			MaxResults: cfg.Tools.Web.Kagi.MaxResults,
-			BaseURL:    cfg.Tools.Web.Kagi.BaseURL,
-			APIKeySet:  len(cfg.Tools.Web.Kagi.APIKeys.Values()) > 0,
-		},
-		"perplexity": {
-			Enabled:    cfg.Tools.Web.Perplexity.Enabled,
-			MaxResults: cfg.Tools.Web.Perplexity.MaxResults,
-			APIKeySet:  len(cfg.Tools.Web.Perplexity.APIKeys.Values()) > 0,
-		},
 		"searxng": {
 			Enabled:    cfg.Tools.Web.SearXNG.Enabled,
 			MaxResults: cfg.Tools.Web.SearXNG.MaxResults,
 			BaseURL:    cfg.Tools.Web.SearXNG.BaseURL,
-		},
-		"glm_search": {
-			Enabled:    cfg.Tools.Web.GLMSearch.Enabled,
-			MaxResults: cfg.Tools.Web.GLMSearch.MaxResults,
-			BaseURL:    cfg.Tools.Web.GLMSearch.BaseURL,
-			APIKeySet:  cfg.Tools.Web.GLMSearch.APIKey.String() != "",
-		},
-		"baidu_search": {
-			Enabled:    cfg.Tools.Web.BaiduSearch.Enabled,
-			MaxResults: cfg.Tools.Web.BaiduSearch.MaxResults,
-			BaseURL:    cfg.Tools.Web.BaiduSearch.BaseURL,
-			APIKeySet:  cfg.Tools.Web.BaiduSearch.APIKey.String() != "",
 		},
 	}
 
@@ -492,23 +410,10 @@ func buildWebSearchConfigResponse(cfg *config.Config) webSearchConfigResponse {
 				cfg.Tools.Web.Provider == "auto",
 		},
 		{
-			ID:         "sogou",
-			Label:      "Sogou",
-			Configured: picotools.WebSearchProviderReady(opts, "sogou"),
-			Current:    current == "sogou",
-		},
-		{
 			ID:         "duckduckgo",
 			Label:      "DuckDuckGo",
 			Configured: picotools.WebSearchProviderReady(opts, "duckduckgo"),
 			Current:    current == "duckduckgo",
-		},
-		{
-			ID:           "gemini",
-			Label:        "Gemini (Google Search)",
-			Configured:   picotools.WebSearchProviderReady(opts, "gemini"),
-			Current:      current == "gemini",
-			RequiresAuth: true,
 		},
 		{
 			ID:           "brave",
@@ -525,38 +430,10 @@ func buildWebSearchConfigResponse(cfg *config.Config) webSearchConfigResponse {
 			RequiresAuth: true,
 		},
 		{
-			ID:           "kagi",
-			Label:        "Kagi Search",
-			Configured:   picotools.WebSearchProviderReady(opts, "kagi"),
-			Current:      current == "kagi",
-			RequiresAuth: true,
-		},
-		{
-			ID:           "perplexity",
-			Label:        "Perplexity",
-			Configured:   picotools.WebSearchProviderReady(opts, "perplexity"),
-			Current:      current == "perplexity",
-			RequiresAuth: true,
-		},
-		{
 			ID:         "searxng",
 			Label:      "SearXNG",
 			Configured: picotools.WebSearchProviderReady(opts, "searxng"),
 			Current:    current == "searxng",
-		},
-		{
-			ID:           "glm_search",
-			Label:        "GLM Search",
-			Configured:   picotools.WebSearchProviderReady(opts, "glm_search"),
-			Current:      current == "glm_search",
-			RequiresAuth: true,
-		},
-		{
-			ID:           "baidu_search",
-			Label:        "Baidu Search",
-			Configured:   picotools.WebSearchProviderReady(opts, "baidu_search"),
-			Current:      current == "baidu_search",
-			RequiresAuth: true,
 		},
 	}
 

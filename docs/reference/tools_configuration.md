@@ -66,103 +66,9 @@ General settings for fetching and processing webpage content.
 | `enabled`     | bool | true    | Enable DuckDuckGo search  |
 | `max_results` | int  | 5       | Maximum number of results |
 
-### Gemini Google Search
 
-Gemini search uses Gemini with Google Search grounding. It returns an AI-synthesized answer with citations from Google Search.
 
-| Config        | Type   | Default              | Description                       |
-|---------------|--------|----------------------|-----------------------------------|
-| `enabled`     | bool   | false                | Enable Gemini Google Search       |
-| `api_key`     | string | -                    | Google Gemini API key             |
-| `model`       | string | `gemini-2.5-flash`   | Gemini model used for search      |
-| `max_results` | int    | 5                    | Maximum number of citations       |
 
-```json
-{
-  "tools": {
-    "web": {
-      "gemini": {
-        "enabled": true,
-        "api_key": "YOUR_GEMINI_API_KEY",
-        "model": "gemini-2.5-flash",
-        "max_results": 5
-      }
-    }
-  }
-}
-```
-
-### Baidu Search
-
-Baidu Search uses the [Qianfan AI Search API](https://cloud.baidu.com/doc/qianfan-api/s/Wmbq4z7e5), which is AI-powered and optimized for Chinese-language queries.
-
-| Config        | Type   | Default                                                | Description               |
-|---------------|--------|--------------------------------------------------------|---------------------------|
-| `enabled`     | bool   | false                                                  | Enable Baidu Search       |
-| `api_key`     | string | -                                                      | Qianfan API key           |
-| `base_url`    | string | `https://qianfan.baidubce.com/v2/ai_search/web_search` | Baidu Search API URL      |
-| `max_results` | int    | 5                                                      | Maximum number of results |
-
-```json
-{
-  "tools": {
-    "web": {
-      "baidu_search": {
-        "enabled": true,
-        "api_key": "YOUR_BAIDU_QIANFAN_API_KEY",
-        "max_results": 10
-      }
-    }
-  }
-}
-```
-
-### Perplexity
-
-| Config        | Type     | Default | Description                                    |
-|---------------|----------|---------|------------------------------------------------|
-| `enabled`     | bool     | false   | Enable Perplexity search                       |
-| `api_key`     | string   | -       | Perplexity API key                             |
-| `api_keys`    | string[] | -       | Multiple API keys for rotation (takes priority over `api_key`) |
-| `max_results` | int      | 5       | Maximum number of results                      |
-
-### Kagi Search
-
-Kagi Search uses the official Kagi OpenAPI client for `POST /search` and returns normal web results from `data.search`.
-
-| Config        | Type     | Default                               | Description                                    |
-|---------------|----------|---------------------------------------|------------------------------------------------|
-| `enabled`     | bool     | false                                 | Enable Kagi Search                             |
-| `api_key`     | string   | -                                     | Kagi API key                                   |
-| `api_keys`    | string[] | -                                     | Multiple API keys for rotation (takes priority over `api_key`) |
-| `base_url`    | string   | `https://kagi.com/api/v1/search`      | Kagi Search API endpoint                       |
-| `max_results` | int      | 5                                     | Maximum number of results                      |
-
-```json
-{
-  "tools": {
-    "web": {
-      "provider": "kagi",
-      "kagi": {
-        "enabled": true,
-        "max_results": 5,
-        "base_url": "https://kagi.com/api/v1/search"
-      }
-    }
-  }
-}
-```
-
-Store Kagi API keys in `.security.yml`:
-
-```yaml
-web:
-  kagi:
-    api_keys:
-      - "YOUR_KAGI_API_KEY"
-```
-
-Kagi API usage may be billed or limited separately from a normal Kagi subscription, depending on your account and API setup.
 
 ### Tavily
 
@@ -181,15 +87,6 @@ Kagi API usage may be billed or limited separately from a normal Kagi subscripti
 | `base_url`    | string | `http://localhost:8888` | SearXNG instance URL      |
 | `max_results` | int    | 5                       | Maximum number of results |
 
-### GLM Search
-
-| Config          | Type   | Default                                           | Description               |
-|-----------------|--------|---------------------------------------------------|---------------------------|
-| `enabled`       | bool   | false                                             | Enable GLM Search         |
-| `api_key`       | string | -                                                 | GLM API key               |
-| `base_url`      | string | `https://open.bigmodel.cn/api/paas/v4/web_search` | GLM Search API URL        |
-| `search_engine` | string | `search_std`                                      | Search engine type        |
-| `max_results`   | int    | 5                                                 | Maximum number of results |
 
 ### Additional Web Settings
 
@@ -311,7 +208,7 @@ as containers, VMs, or an approval flow around build-and-run commands.
 
 Lazy loading keeps the LLM context small when many tools are registered. Only **core tools** are exposed up front. Every other tool is registered as hidden (deferred) and must be discovered on demand.
 
-This is separate from MCP `discovery` below, which only affects MCP server tools. `tools.lazy_loading` affects the built-in agent tools (`read_file`, `edit_file`, `exec`, `web_search`, `web_fetch`, `message`, `reaction`, `list_dir`, `load_image`, `spawn`, `cron`, `delegate`, etc.).
+This is separate from MCP `discovery` below, which only affects MCP server tools. `tools.lazy_loading` affects the built-in agent tools (`read_file`, `edit_file`, `exec`, `web_search`, `web_fetch`, `message`, `reaction`, `list_dir`, `load_image`, `spawn`, `cron`, etc.).
 
 | Config | Type | Default | Description |
 |--------|------|---------|-------------|

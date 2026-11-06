@@ -349,43 +349,14 @@ func DefaultConfig() *Config {
 					Enabled:    false,
 					MaxResults: 5,
 				},
-				Kagi: KagiConfig{
-					Enabled:    false,
-					BaseURL:    "https://kagi.com/api/v1/search",
-					MaxResults: 5,
-				},
-				Sogou: SogouConfig{
-					Enabled:    true,
-					MaxResults: 5,
-				},
 				DuckDuckGo: DuckDuckGoConfig{
-					Enabled:    false,
-					MaxResults: 5,
-				},
-				Gemini: GeminiSearchConfig{
-					Enabled:    false,
-					Model:      "gemini-2.5-flash",
-					MaxResults: 5,
-				},
-				Perplexity: PerplexityConfig{
-					Enabled:    false,
+					Enabled:    true,
 					MaxResults: 5,
 				},
 				SearXNG: SearXNGConfig{
 					Enabled:    false,
 					BaseURL:    "",
 					MaxResults: 5,
-				},
-				GLMSearch: GLMSearchConfig{
-					Enabled:      false,
-					BaseURL:      "https://open.bigmodel.cn/api/paas/v4/web_search",
-					SearchEngine: "search_std",
-					MaxResults:   5,
-				},
-				BaiduSearch: BaiduSearchConfig{
-					Enabled:    false,
-					BaseURL:    "https://qianfan.baidubce.com/v2/ai_search/web_search",
-					MaxResults: 10,
 				},
 			},
 			Cron: CronToolsConfig{

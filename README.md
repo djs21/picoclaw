@@ -523,14 +523,9 @@ PicoClaw can search the web to provide up-to-date information. Configure in `too
 | Search Engine | API Key | Free Tier | Link |
 |--------------|---------|-----------|------|
 | DuckDuckGo | Not needed | Unlimited | Built-in fallback |
-| [Gemini Google Search](https://aistudio.google.com/apikey) | Required | Varies | Gemini with Google Search grounding |
-| [Baidu Search](https://cloud.baidu.com/doc/qianfan-api/s/Wmbq4z7e5) | Required | 1500/month (daily allocation) | AI-powered, China-optimized |
 | [Tavily](https://tavily.com) | Required | 1000 queries/month | Optimized for AI Agents |
 | [Brave Search](https://brave.com/search/api) | Required | 2000 queries/month | Fast and private |
-| [Kagi Search](https://help.kagi.com/kagi/api/search.html) | Required | Paid/limited by API setup | Premium search results |
-| [Perplexity](https://www.perplexity.ai) | Required | Paid | AI-powered search |
 | [SearXNG](https://github.com/searxng/searxng) | Not needed | Self-hosted | Free metasearch engine |
-| [GLM Search](https://open.bigmodel.cn/) | Required | Varies | Zhipu web search |
 
 ### ⚙️ Other Tools
 
@@ -545,7 +540,7 @@ PicoClaw ships a small built-in tool set; everything else arrives through MCP se
 | Skills registry | `skills` | Browse and install skills from configured registries |
 | Messaging | `message`, `reaction` | Outbound messages, media delivery, and reactions |
 | Media | `load_image`, `send_tts` | Load images into context, synthesize speech |
-| Subagents | `spawn`, `delegate` | Background tasks, sync sub-turns, peer-agent handoff |
+| Subagents | `spawn` | Background tasks, sync sub-turns, peer-agent handoff |
 | MCP | `mcp_<server>_<tool>` | Tools contributed by connected MCP servers |
 
 Individual tools can be enabled or disabled in `tools.*`; agents can also self-recover when a model emits tool-call pseudo-syntax as text instead of a structured call. See [Tools Configuration](docs/reference/tools_configuration.md) for details.

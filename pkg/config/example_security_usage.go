@@ -51,8 +51,7 @@ channels:
 	  token: "your-discord-bot-token"
 
 # Web Tool Keys
-# Brave, Tavily, Perplexity, Kagi: Use 'api_keys' array
-# GLMSearch, BaiduSearch: Use 'api_key' single string
+# Brave, Tavily: Use 'api_keys' array
 web:
 
 	brave:
@@ -61,17 +60,7 @@ web:
 	    - "BSAyour-brave-api-key-2"  # Optional: Multiple keys for failover
 	tavily:
 	  api_keys:
-	    - "tvly-your-tavily-api-key"  # Single key in array format
-	perplexity:
-	  api_keys:
-	    - "pplx-your-perplexity-api-key"  # Single key in array format
-	kagi:
-	  api_keys:
-	    - "your-kagi-api-key"  # Single key in array format
-	glm_search:
-	  api_key: "your-glm-search-api-key"  # Single key (not array)
-	baidu_search:
-	  api_key: "your-baidu-search-api-key"  # Single key (not array)
+	    - "tvly-your-tavily-api-key"  # Single key in array format  # Single key (not array)
 
 ```
 
@@ -125,14 +114,6 @@ Note: Sensitive fields are omitted because they're loaded from .security.yml
 	        "enabled": true
 	        // api_key is automatically loaded from .security.yml
 	      },
-	      "glm_search": {
-	        "enabled": true
-	        // api_key is automatically loaded from .security.yml
-	      },
-	      "baidu_search": {
-	        "enabled": true
-	        // api_key is automatically loaded from .security.yml
-	      }
 	    }
 	  }
 	}
@@ -242,7 +223,7 @@ channels:
 
 ## Web Tool API Keys
 
-**Brave, Tavily, Perplexity, Kagi:**
+**Brave, Tavily:**
 ```yaml
 web:
 
@@ -253,24 +234,14 @@ web:
 	tavily:
 	  api_keys:
 	    - "tvly-key"
-	perplexity:
-	  api_keys:
-	    - "pplx-key"
-	kagi:
-	  api_keys:
-	    - "kagi-key"
 
 ```
 Use `api_keys` (plural) array format.
 
-**GLMSearch, BaiduSearch:**
+
 ```yaml
 web:
 
-	glm_search:
-	  api_key: "your-glm-key"
-	baidu_search:
-	  api_key: "your-baidu-key"
 
 ```
 Use `api_key` (singular) single string format.
@@ -421,8 +392,6 @@ web:
 	tavily:
 	  api_keys:
 	    - "tvly-your-key"  # Single key in array format
-	glm_search:
-	  api_key: "your-glm-key"  # GLMSearch uses single key format
 
 ```
 
@@ -438,9 +407,6 @@ web:
 	      "tavily": {
 	        "enabled": true
 	      },
-	      "glm_search": {
-	        "enabled": true
-	      }
 	    }
 	  }
 	}
@@ -449,7 +415,7 @@ web:
 
 ## Single Key Format
 
-**Models, Brave, Tavily, Perplexity, Kagi:**
+**Models, Brave, Tavily:**
 ```yaml
 model_list:
 
@@ -459,12 +425,10 @@ model_list:
 
 ```
 
-**GLMSearch, BaiduSearch:**
+
 ```yaml
 web:
-
-	glm_search:
-	  api_key: "your-glm-key"  # Single key (not array)
+  # Single key (not array)
 
 ```
 
@@ -569,10 +533,9 @@ and .security.yml values.
 - Ensure the YAML structure is correct (proper indentation)
 
 ## Multiple API Keys Not Working
-- Ensure you're using `api_keys` (plural) in .security.yml for models and web tools (except GLMSearch/BaiduSearch)
+- Ensure you're using `api_keys` (plural) in .security.yml for models and web tools
 - Check that the array format is correct in YAML (proper indentation with dashes)
-- Remember: Models, Brave, Tavily, Perplexity, Kagi MUST use `api_keys` (array format)
-- GLMSearch and BaiduSearch MUST use `api_key` (single string format)
+- Remember: Models, Brave, Tavily MUST use `api_keys` (array format)
 
 ## Keys Not Being Applied
 - Check that .security.yml is in the same directory as config.json

@@ -1973,7 +1973,9 @@ func TestGatewayStatusRequiresRestartAfterWebSearchConfigChange(t *testing.T) {
 	cfg.Agents.Defaults.ModelName = cfg.ModelList[0].ModelName
 	cfg.ModelList[0].SetAPIKey("test-key")
 	cfg.Tools.Web.Enabled = true
-	cfg.Tools.Web.Provider = "sogou"
+	cfg.Tools.Web.Provider = "brave"
+	cfg.Tools.Web.Brave.Enabled = true
+	cfg.Tools.Web.Brave.SetAPIKey("brave-test-key")
 	if err := config.SaveConfig(configPath, cfg); err != nil {
 		t.Fatalf("SaveConfig() error = %v", err)
 	}

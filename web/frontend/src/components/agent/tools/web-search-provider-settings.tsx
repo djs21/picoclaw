@@ -19,25 +19,11 @@ interface WebSearchProviderSettingsProps {
   onUpdateDraft: WebSearchDraftUpdater
 }
 
-const baseUrlProviders = new Set([
-  "tavily",
-  "kagi",
-  "searxng",
-  "glm_search",
-  "baidu_search",
-])
+const baseUrlProviders = new Set(["tavily", "searxng"])
 
-const apiKeyProviders = new Set([
-  "brave",
-  "tavily",
-  "kagi",
-  "perplexity",
-  "gemini",
-  "glm_search",
-  "baidu_search",
-])
+const apiKeyProviders = new Set(["brave", "tavily"])
 
-const modelProviders = new Set(["gemini"])
+const modelProviders = new Set<string>()
 
 export function WebSearchProviderSettings({
   providerLabelMap,

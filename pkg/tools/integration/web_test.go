@@ -470,26 +470,11 @@ func TestSearchRangeMappings(t *testing.T) {
 	if got := mapTavilyTimeRange("w"); got != "week" {
 		t.Fatalf("mapTavilyTimeRange(w) = %q, want week", got)
 	}
-	if got := mapPerplexityRecencyFilter("m"); got != "month" {
-		t.Fatalf("mapPerplexityRecencyFilter(m) = %q, want month", got)
-	}
 	if got := mapDuckDuckGoDateFilter("y"); got != "t" {
 		t.Fatalf("mapDuckDuckGoDateFilter(y) = %q, want t", got)
 	}
 	if got := mapSearXNGTimeRange("d"); got != "day" {
 		t.Fatalf("mapSearXNGTimeRange(d) = %q, want day", got)
-	}
-	if got := mapGLMRecencyFilter("w"); got != "oneWeek" {
-		t.Fatalf("mapGLMRecencyFilter(w) = %q, want oneWeek", got)
-	}
-	if got := mapGLMRecencyFilter(""); got != "noLimit" {
-		t.Fatalf("mapGLMRecencyFilter(\"\") = %q, want noLimit", got)
-	}
-	if got := mapBaiduRecencyFilter("d"); got != "week" {
-		t.Fatalf("mapBaiduRecencyFilter(d) = %q, want week", got)
-	}
-	if got := mapBaiduRecencyFilter("m"); got != "month" {
-		t.Fatalf("mapBaiduRecencyFilter(m) = %q, want month", got)
 	}
 }
 
@@ -1083,25 +1068,6 @@ func TestNewWebFetchToolWithConfig_InvalidPrivateHostWhitelist(t *testing.T) {
 }
 
 func TestNewWebSearchTool_PropagatesProxy(t *testing.T) {
-	t.Run("perplexity", func(t *testing.T) {
-		tool, err := NewWebSearchTool(WebSearchToolOptions{
-			PerplexityEnabled:    true,
-			PerplexityAPIKeys:    []string{"k"},
-			PerplexityMaxResults: 3,
-			Proxy:                "http://127.0.0.1:7890",
-		})
-		if err != nil {
-			t.Fatalf("NewWebSearchTool() error: %v", err)
-		}
-		p, ok := tool.provider.(*PerplexitySearchProvider)
-		if !ok {
-			t.Fatalf("provider type = %T, want *PerplexitySearchProvider", tool.provider)
-		}
-		if p.proxy != "http://127.0.0.1:7890" {
-			t.Fatalf("provider proxy = %q, want %q", p.proxy, "http://127.0.0.1:7890")
-		}
-	})
-
 	t.Run("brave", func(t *testing.T) {
 		tool, err := NewWebSearchTool(WebSearchToolOptions{
 			BraveEnabled:    true,
@@ -1285,212 +1251,6 @@ func TestWebTool_TavilySearch_RangeMapping(t *testing.T) {
 	})
 	if result.IsError {
 		t.Fatalf("expected success, got %s", result.ForLLM)
-	}
-}
-
-func TestWebTool_KagiSearch_SuccessRequestAndParsing(t *testing.T) {
-	var sawRequest bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sawRequest = true
-		if r.Method != http.MethodPost {
-			t.Fatalf("method = %s, want POST", r.Method)
-		}
-		if r.URL.Path != "/search" {
-			t.Fatalf("path = %s, want /search", r.URL.Path)
-		}
-		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
-			t.Fatalf("Authorization = %q, want Bearer test-key", got)
-		}
-
-		var payload map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode payload: %v", err)
-		}
-		if payload["query"] != "test query" {
-			t.Fatalf("query = %v, want test query", payload["query"])
-		}
-		if payload["workflow"] != "search" {
-			t.Fatalf("workflow = %v, want search", payload["workflow"])
-		}
-		if payload["limit"] != float64(2) {
-			t.Fatalf("limit = %v, want 2", payload["limit"])
-		}
-		lens, ok := payload["lens"].(map[string]any)
-		if !ok || lens["time_relative"] != "week" {
-			t.Fatalf("lens = %v, want time_relative=week", payload["lens"])
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
-			"data": {
-				"search": [
-					{
-						"title": "Kagi Result 1",
-						"url": "https://example.com/1",
-						"snippet": "<b>first</b> snippet",
-						"time": "2026-01-02T03:04:05Z"
-					},
-					{
-						"title": "Kagi Result 2",
-						"url": "https://example.com/2",
-						"snippet": "second snippet"
-					},
-					{
-						"title": "Kagi Result 3",
-						"url": "https://example.com/3",
-						"snippet": "third snippet"
-					}
-				]
-			}
-		}`))
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		KagiEnabled:    true,
-		KagiAPIKeys:    []string{"test-key"},
-		KagiBaseURL:    server.URL,
-		KagiMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{
-		"query": "test query",
-		"count": float64(2),
-		"range": "w",
-	})
-	if result.IsError {
-		t.Fatalf("expected success, got %s", result.ForLLM)
-	}
-	if !sawRequest {
-		t.Fatal("server did not receive request")
-	}
-	if !strings.Contains(result.ForUser, "via Kagi") ||
-		!strings.Contains(result.ForUser, "Kagi Result 1") ||
-		!strings.Contains(result.ForUser, "https://example.com/1") ||
-		!strings.Contains(result.ForUser, "first snippet") ||
-		!strings.Contains(result.ForUser, "Published: 2026-01-02T03:04:05Z") {
-		t.Fatalf("expected Kagi result fields in output, got: %s", result.ForUser)
-	}
-	if strings.Contains(result.ForUser, "Kagi Result 3") {
-		t.Fatalf("expected output truncated to requested count, got: %s", result.ForUser)
-	}
-}
-
-func TestWebTool_KagiSearch_NoApiKey(t *testing.T) {
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		KagiEnabled:    true,
-		KagiMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if tool != nil {
-		t.Fatal("expected nil tool when Kagi is enabled without API keys")
-	}
-}
-
-func TestWebTool_KagiSearch_AuthErrorDoesNotLeakKey(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer invalid-kagi-key" {
-			t.Fatalf("Authorization = %q, want Bearer invalid-kagi-key", got)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"unauthorized"}`))
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		KagiEnabled:    true,
-		KagiAPIKeys:    []string{"invalid-kagi-key"},
-		KagiBaseURL:    server.URL + "/search",
-		KagiMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{"query": "test query"})
-	if !result.IsError {
-		t.Fatal("expected auth error")
-	}
-	if !strings.Contains(result.ForLLM, "authentication failed") {
-		t.Fatalf("unexpected error message: %s", result.ForLLM)
-	}
-	if strings.Contains(result.ForLLM, "invalid-kagi-key") || strings.Contains(result.ForUser, "invalid-kagi-key") {
-		t.Fatalf("error leaked API key: %+v", result)
-	}
-}
-
-func TestWebTool_KagiSearch_Non200Response(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"temporary failure"}`))
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		KagiEnabled:    true,
-		KagiAPIKeys:    []string{"test-key"},
-		KagiBaseURL:    server.URL,
-		KagiMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{"query": "test query"})
-	if !result.IsError {
-		t.Fatal("expected non-200 error")
-	}
-	if !strings.Contains(result.ForLLM, "server error (status 500)") {
-		t.Fatalf("unexpected error message: %s", result.ForLLM)
-	}
-}
-
-func TestWebTool_KagiSearch_SkipsUnsupportedAndMalformedResults(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
-			"data": {
-				"image": [
-					{"title": "Image Result", "url": "https://images.example.com/1"}
-				],
-				"search": [
-					{"title": "Missing URL"},
-					{"title": "Usable Result", "url": "https://example.com/usable", "snippet": "usable snippet", "extra": "ignored"}
-				]
-			}
-		}`))
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		KagiEnabled:    true,
-		KagiAPIKeys:    []string{"test-key"},
-		KagiBaseURL:    server.URL,
-		KagiMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{"query": "test query"})
-	if result.IsError {
-		t.Fatalf("expected success, got %s", result.ForLLM)
-	}
-	if !strings.Contains(result.ForUser, "Usable Result") ||
-		!strings.Contains(result.ForUser, "https://example.com/usable") {
-		t.Fatalf("expected usable result, got: %s", result.ForUser)
-	}
-	if strings.Contains(result.ForUser, "Image Result") || strings.Contains(result.ForUser, "Missing URL") {
-		t.Fatalf("unsupported or malformed result was included: %s", result.ForUser)
 	}
 }
 
@@ -1755,609 +1515,91 @@ func TestWebTool_SearXNGSearch_RangeMapping(t *testing.T) {
 	}
 }
 
-func TestWebTool_GLMSearch_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("Expected POST request, got %s", r.Method)
-		}
-		if r.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("Expected Content-Type application/json, got %s", r.Header.Get("Content-Type"))
-		}
-		if r.Header.Get("Authorization") != "Bearer test-glm-key" {
-			t.Errorf("Expected Authorization Bearer test-glm-key, got %s", r.Header.Get("Authorization"))
-		}
-
-		var payload map[string]any
-		json.NewDecoder(r.Body).Decode(&payload)
-		if payload["search_query"] != "test query" {
-			t.Errorf("Expected search_query 'test query', got %v", payload["search_query"])
-		}
-		if payload["search_engine"] != "search_std" {
-			t.Errorf("Expected search_engine 'search_std', got %v", payload["search_engine"])
-		}
-
-		response := map[string]any{
-			"id":      "web-search-test",
-			"created": 1709568000,
-			"search_result": []map[string]any{
-				{
-					"title":        "Test GLM Result",
-					"content":      "GLM search snippet",
-					"link":         "https://example.com/glm",
-					"media":        "Example",
-					"publish_date": "2026-03-04",
-				},
-			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		GLMSearchEnabled: true,
-		GLMSearchAPIKey:  "test-glm-key",
-		GLMSearchBaseURL: server.URL,
-		GLMSearchEngine:  "search_std",
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{
-		"query": "test query",
-	})
-
-	if result.IsError {
-		t.Errorf("Expected success, got IsError=true: %s", result.ForLLM)
-	}
-	if !strings.Contains(result.ForUser, "Test GLM Result") {
-		t.Errorf("Expected 'Test GLM Result' in output, got: %s", result.ForUser)
-	}
-	if !strings.Contains(result.ForUser, "https://example.com/glm") {
-		t.Errorf("Expected URL in output, got: %s", result.ForUser)
-	}
-	if !strings.Contains(result.ForUser, "via GLM Search") {
-		t.Errorf("Expected 'via GLM Search' in output, got: %s", result.ForUser)
-	}
-}
-
-func TestWebTool_GLMSearch_RangeMapping(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode payload: %v", err)
-		}
-		if payload["search_recency_filter"] != "oneMonth" {
-			t.Fatalf("expected search_recency_filter=oneMonth, got %v", payload["search_recency_filter"])
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
-			"search_result": []map[string]any{
-				{"title": "Recent GLM Result", "content": "snippet", "link": "https://example.com/glm-range"},
-			},
-		})
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		GLMSearchEnabled: true,
-		GLMSearchAPIKey:  "test-glm-key",
-		GLMSearchBaseURL: server.URL,
-		GLMSearchEngine:  "search_std",
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{
-		"query": "test query",
-		"range": "m",
-	})
-	if result.IsError {
-		t.Fatalf("expected success, got %s", result.ForLLM)
-	}
-}
-
-func TestWebTool_BaiduSearch_RangeMapping(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode payload: %v", err)
-		}
-		if payload["search_recency_filter"] != "week" {
-			t.Fatalf("expected search_recency_filter=week for day fallback, got %v", payload["search_recency_filter"])
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
-			"references": []map[string]any{
-				{"title": "Recent Baidu Result", "url": "https://example.com/baidu", "content": "snippet"},
-			},
-		})
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		BaiduSearchEnabled: true,
-		BaiduSearchAPIKey:  "test-baidu-key",
-		BaiduSearchBaseURL: server.URL,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{
-		"query": "test query",
-		"range": "d",
-	})
-	if result.IsError {
-		t.Fatalf("expected success, got %s", result.ForLLM)
-	}
-}
-
-func TestWebTool_GLMSearch_APIError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"invalid api key"}`))
-	}))
-	defer server.Close()
-
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		GLMSearchEnabled: true,
-		GLMSearchAPIKey:  "bad-key",
-		GLMSearchBaseURL: server.URL,
-		GLMSearchEngine:  "search_std",
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	result := tool.Execute(context.Background(), map[string]any{
-		"query": "test query",
-	})
-
-	if !result.IsError {
-		t.Errorf("Expected IsError=true for 401 response")
-	}
-	if !strings.Contains(result.ForLLM, "status 401") {
-		t.Errorf("Expected status 401 in error, got: %s", result.ForLLM)
-	}
-}
-
-func TestWebTool_GLMSearch_Priority(t *testing.T) {
-	// GLM Search should only be selected when all other providers are disabled
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		DuckDuckGoEnabled:    true,
-		DuckDuckGoMaxResults: 5,
-		GLMSearchEnabled:     true,
-		GLMSearchAPIKey:      "test-key",
-		GLMSearchBaseURL:     "https://example.com",
-		GLMSearchEngine:      "search_std",
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-
-	// DuckDuckGo should win over GLM Search
-	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
-		t.Errorf("Expected DuckDuckGoSearchProvider when both enabled, got %T", tool.provider)
-	}
-
-	// With DuckDuckGo disabled, GLM Search should be selected
-	tool2, err := NewWebSearchTool(WebSearchToolOptions{
-		DuckDuckGoEnabled: false,
-		GLMSearchEnabled:  true,
-		GLMSearchAPIKey:   "test-key",
-		GLMSearchBaseURL:  "https://example.com",
-		GLMSearchEngine:   "search_std",
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if _, ok := tool2.provider.(*GLMSearchProvider); !ok {
-		t.Errorf("Expected GLMSearchProvider when only GLM enabled, got %T", tool2.provider)
-	}
-}
-
-func TestWebTool_SogouSearch_Success(t *testing.T) {
-	provider := &SogouSearchProvider{
-		client: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				rec := httptest.NewRecorder()
-				fmt.Fprint(rec, `<html><body>
-<a class=resultLink href="/link?url=https%3A%2F%2Fexample.com%2Fa" id="sogou_vr_0_0">Result A</a>
-<div class="clamp3">Snippet A</div>
-<a class=resultLink href="/link?url=https%3A%2F%2Fexample.com%2Fb" id="sogou_vr_0_1">Result B</a>
-<div class="clamp3">Snippet B</div>
-</body></html>`)
-				return rec.Result(), nil
-			}),
-		},
-	}
-
-	out, err := provider.Search(context.Background(), "test query", 2, "")
-	if err != nil {
-		t.Fatalf("Search() error: %v", err)
-	}
-	if !strings.Contains(out, "via Sogou") || !strings.Contains(out, "https://example.com/a") {
-		t.Fatalf("unexpected output: %s", out)
-	}
-}
-
-func TestApplySogouRangeHint(t *testing.T) {
-	tests := []struct {
-		name      string
-		query     string
-		rangeCode string
-		want      string
-	}{
-		{name: "empty range", query: "golang", rangeCode: "", want: "golang"},
-		{name: "day", query: "golang", rangeCode: "d", want: "golang 最近一天"},
-		{name: "week", query: "golang", rangeCode: "w", want: "golang 最近一周"},
-		{name: "month", query: "golang", rangeCode: "m", want: "golang 最近一个月"},
-		{name: "year", query: "golang", rangeCode: "y", want: "golang 最近一年"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := applySogouRangeHint(tt.query, tt.rangeCode); got != tt.want {
-				t.Fatalf("applySogouRangeHint(%q, %q) = %q, want %q", tt.query, tt.rangeCode, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPrefersDuckDuckGoQuery(t *testing.T) {
-	tests := []struct {
-		name  string
-		query string
-		want  bool
-	}{
-		{name: "english words", query: "golang web search", want: true},
-		{name: "english with numbers", query: "OpenAI o3 price 2026", want: true},
-		{name: "chinese", query: "今天上海天气", want: false},
-		{name: "mixed with han", query: "golang 中文 教程", want: false},
-		{name: "numbers only", query: "2026 04 15", want: false},
-		{name: "blank", query: "   ", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := prefersDuckDuckGoQuery(tt.query); got != tt.want {
-				t.Fatalf("prefersDuckDuckGoQuery(%q) = %v, want %v", tt.query, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPrefersDuckDuckGoQuery_DoesNotUseGlobalLanguageFallback(t *testing.T) {
-	if prefersDuckDuckGoQuery("2026 04 15") {
-		t.Fatal("numeric query should default to Sogou when no script-specific hint is present")
-	}
-}
-
-func TestWebTool_SogouPriorityAndExplicitProvider(t *testing.T) {
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		SogouEnabled:         true,
-		SogouMaxResults:      5,
-		DuckDuckGoEnabled:    true,
-		DuckDuckGoMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider, got %T", tool.provider)
-	}
-
-	tool, err = NewWebSearchTool(WebSearchToolOptions{
-		Provider:             "duckduckgo",
-		SogouEnabled:         true,
-		SogouMaxResults:      5,
-		DuckDuckGoEnabled:    true,
-		DuckDuckGoMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
-		t.Fatalf("expected DuckDuckGoSearchProvider, got %T", tool.provider)
-	}
-}
-
-func TestWebTool_AutoProviderPrefersConfiguredProvidersBeforeSogou(t *testing.T) {
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		SogouEnabled:         true,
-		SogouMaxResults:      5,
-		BraveEnabled:         true,
-		BraveAPIKeys:         []string{"brave-key"},
-		BraveMaxResults:      5,
-		DuckDuckGoEnabled:    true,
-		DuckDuckGoMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if _, ok := tool.provider.(*BraveSearchProvider); !ok {
-		t.Fatalf("expected BraveSearchProvider, got %T", tool.provider)
-	}
-}
-
-func TestWebTool_AutoProviderPrefersConfiguredProvidersBeforeGemini(t *testing.T) {
-	opts := WebSearchToolOptions{
-		GeminiEnabled:        true,
-		GeminiAPIKey:         "google-key",
-		GeminiModel:          "gemini-2.5-flash",
-		GeminiMaxResults:     5,
-		BraveEnabled:         true,
-		BraveAPIKeys:         []string{"brave-key"},
-		BraveMaxResults:      5,
-		SogouEnabled:         true,
-		SogouMaxResults:      5,
-		DuckDuckGoEnabled:    true,
-		DuckDuckGoMaxResults: 5,
-	}
-
-	name, err := ResolveWebSearchProviderName(opts, "best robotics companies")
-	if err != nil {
-		t.Fatalf("ResolveWebSearchProviderName() error: %v", err)
-	}
-	if name != "brave" {
-		t.Fatalf("provider = %q, want brave", name)
-	}
-
-	name, err = ResolveWebSearchProviderName(opts, "今天上海天气")
-	if err != nil {
-		t.Fatalf("ResolveWebSearchProviderName() error: %v", err)
-	}
-	if name != "brave" {
-		t.Fatalf("provider = %q, want brave", name)
-	}
-}
-
-func TestWebTool_GeminiRequiresAPIKey(t *testing.T) {
-	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		Provider:        "gemini",
-		GeminiEnabled:   true,
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
-	})
-	if err != nil {
-		t.Fatalf("NewWebSearchTool() error: %v", err)
-	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider after missing Gemini API key fallback, got %T", tool.provider)
-	}
-}
-
-func TestGeminiSearchProvider_SearchSuccess(t *testing.T) {
-	provider := &GeminiSearchProvider{
-		apiKey: "google-key",
-		model:  "gemini-2.5-flash",
-		client: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodPost {
-					t.Fatalf("method = %s, want POST", req.Method)
-				}
-				if got := req.Header.Get("X-Goog-Api-Key"); got != "google-key" {
-					t.Fatalf("X-Goog-Api-Key = %q, want google-key", got)
-				}
-				if !strings.Contains(req.URL.String(), "/models/gemini-2.5-flash:generateContent") {
-					t.Fatalf("unexpected URL: %s", req.URL.String())
-				}
-				rec := httptest.NewRecorder()
-				rec.WriteHeader(http.StatusOK)
-				fmt.Fprint(rec, `{
-  "candidates": [
-    {
-      "content": {
-        "parts": [
-          {"text": "Answer paragraph one."},
-          {"text": "Answer paragraph two."}
-        ]
-      },
-      "groundingMetadata": {
-        "groundingChunks": [
-          {"web": {"uri": "https://example.com/a", "title": "Result A"}},
-          {"web": {"uri": "https://example.com/b", "title": "Result B"}},
-          {"web": {"uri": "https://example.com/c", "title": "Result C"}}
-        ]
-      }
-    }
-  ]
-}`)
-				return rec.Result(), nil
-			}),
-		},
-	}
-
-	out, err := provider.Search(context.Background(), "robotics", 2, "")
-	if err != nil {
-		t.Fatalf("Search() error: %v", err)
-	}
-	if !strings.Contains(out, "Results for: robotics (via Gemini Google Search)") {
-		t.Fatalf("missing header in output: %s", out)
-	}
-	if !strings.Contains(out, "Answer paragraph one.") || !strings.Contains(out, "Answer paragraph two.") {
-		t.Fatalf("missing response text in output: %s", out)
-	}
-	if !strings.Contains(out, "1. Result A") || !strings.Contains(out, "2. Result B") {
-		t.Fatalf("missing citations in output: %s", out)
-	}
-	if strings.Contains(out, "Result C") {
-		t.Fatalf("expected citations to be limited to count=2, got: %s", out)
-	}
-}
-
-func TestGeminiSearchProvider_SearchIgnoresRange(t *testing.T) {
-	provider := &GeminiSearchProvider{
-		apiKey: "google-key",
-		model:  "gemini-2.5-flash",
-		client: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				rec := httptest.NewRecorder()
-				rec.WriteHeader(http.StatusOK)
-				fmt.Fprint(rec, `{
-  "candidates": [
-    {
-      "content": {
-        "parts": [
-          {"text": "Recent robotics result."}
-        ]
-      }
-    }
-  ]
-}`)
-				return rec.Result(), nil
-			}),
-		},
-	}
-
-	out, err := provider.Search(context.Background(), "robotics", 2, "d")
-	if err != nil {
-		t.Fatalf("Search() error: %v", err)
-	}
-	if !strings.Contains(out, "Recent robotics result.") {
-		t.Fatalf("missing response text in output: %s", out)
-	}
-}
-
-func TestGeminiSearchProvider_SearchAPIError(t *testing.T) {
-	provider := &GeminiSearchProvider{
-		apiKey: "google-key",
-		model:  "gemini-2.5-flash",
-		client: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				rec := httptest.NewRecorder()
-				rec.WriteHeader(http.StatusTooManyRequests)
-				fmt.Fprint(rec, `{"error":"quota exceeded"}`)
-				return rec.Result(), nil
-			}),
-		},
-	}
-
-	_, err := provider.Search(context.Background(), "robotics", 2, "")
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if !strings.Contains(err.Error(), "status 429") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestGeminiSearchProvider_SearchEmptyCandidates(t *testing.T) {
-	provider := &GeminiSearchProvider{
-		apiKey: "google-key",
-		model:  "gemini-2.5-flash",
-		client: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				rec := httptest.NewRecorder()
-				rec.WriteHeader(http.StatusOK)
-				fmt.Fprint(rec, `{"candidates":[]}`)
-				return rec.Result(), nil
-			}),
-		},
-	}
-
-	out, err := provider.Search(context.Background(), "robotics", 2, "")
-	if err != nil {
-		t.Fatalf("Search() error: %v", err)
-	}
-	if out != "No results for: robotics" {
-		t.Fatalf("output = %q, want %q", out, "No results for: robotics")
-	}
-}
-
 func TestWebTool_ExplicitProviderFallsBackWhenMissingCredentials(t *testing.T) {
 	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		Provider:        "brave",
-		BraveEnabled:    true,
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "brave",
+		BraveEnabled:         true,
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	})
 	if err != nil {
 		t.Fatalf("NewWebSearchTool() error: %v", err)
 	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider after fallback, got %T", tool.provider)
+	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
+		t.Fatalf("expected DuckDuckGoSearchProvider after fallback, got %T", tool.provider)
 	}
 }
 
 func TestWebTool_ExplicitProviderFallsBackWhenMissingBaseURL(t *testing.T) {
 	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		Provider:        "searxng",
-		SearXNGEnabled:  true,
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "searxng",
+		SearXNGEnabled:       true,
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	})
 	if err != nil {
 		t.Fatalf("NewWebSearchTool() error: %v", err)
 	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider after fallback, got %T", tool.provider)
+	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
+		t.Fatalf("expected DuckDuckGoSearchProvider after fallback, got %T", tool.provider)
 	}
 }
 
 func TestWebTool_AutoProviderSkipsEnabledButUnreadyProviders(t *testing.T) {
 	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		Provider:        "auto",
-		BraveEnabled:    true,
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "auto",
+		BraveEnabled:         true,
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	})
 	if err != nil {
 		t.Fatalf("NewWebSearchTool() error: %v", err)
 	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider when Brave has no API key, got %T", tool.provider)
+	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
+		t.Fatalf("expected DuckDuckGoSearchProvider when Brave has no API key, got %T", tool.provider)
 	}
 }
 
 func TestResolveWebSearchProviderName_FallsBackFromExplicitUnavailableProvider(t *testing.T) {
 	got, err := ResolveWebSearchProviderName(WebSearchToolOptions{
-		Provider:        "brave",
-		BraveEnabled:    true,
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "brave",
+		BraveEnabled:         true,
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	}, "")
 	if err != nil {
 		t.Fatalf("ResolveWebSearchProviderName() error: %v", err)
 	}
-	if got != "sogou" {
-		t.Fatalf("ResolveWebSearchProviderName() = %q, want sogou", got)
+	if got != "duckduckgo" {
+		t.Fatalf("ResolveWebSearchProviderName() = %q, want duckduckgo", got)
 	}
 }
 
 func TestWebTool_UnknownExplicitProviderFallsBackToAuto(t *testing.T) {
 	tool, err := NewWebSearchTool(WebSearchToolOptions{
-		Provider:        "totally_unknown",
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "totally_unknown",
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	})
 	if err != nil {
 		t.Fatalf("NewWebSearchTool() error: %v", err)
 	}
-	if _, ok := tool.provider.(*SogouSearchProvider); !ok {
-		t.Fatalf("expected SogouSearchProvider after fallback, got %T", tool.provider)
+	if _, ok := tool.provider.(*DuckDuckGoSearchProvider); !ok {
+		t.Fatalf("expected DuckDuckGoSearchProvider after fallback, got %T", tool.provider)
 	}
 }
 
 func TestResolveWebSearchProviderName_FallsBackFromUnknownProvider(t *testing.T) {
 	got, err := ResolveWebSearchProviderName(WebSearchToolOptions{
-		Provider:        "totally_unknown",
-		SogouEnabled:    true,
-		SogouMaxResults: 5,
+		Provider:             "totally_unknown",
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
 	}, "")
 	if err != nil {
 		t.Fatalf("ResolveWebSearchProviderName() error: %v", err)
 	}
-	if got != "sogou" {
-		t.Fatalf("ResolveWebSearchProviderName() = %q, want sogou", got)
+	if got != "duckduckgo" {
+		t.Fatalf("ResolveWebSearchProviderName() = %q, want duckduckgo", got)
 	}
 }
 
@@ -2376,37 +1618,22 @@ func (p *stubSearchProvider) Search(
 	return p.result, nil
 }
 
-func TestWebTool_AutoProviderRoutesQueryLanguageBetweenSogouAndDuckDuckGo(t *testing.T) {
-	sogouProvider := &stubSearchProvider{result: "via sogou"}
+func TestWebTool_AutoProviderRoutesToStubResolver(t *testing.T) {
 	duckProvider := &stubSearchProvider{result: "via duckduckgo"}
 	tool := &WebSearchTool{
-		provider:   sogouProvider,
+		provider:   duckProvider,
 		maxResults: 5,
 		providerResolver: func(query string) (SearchProvider, int) {
-			if prefersDuckDuckGoQuery(query) {
-				return duckProvider, 3
-			}
-			return sogouProvider, 5
+			return duckProvider, 3
 		},
 	}
 
-	enResult := tool.Execute(context.Background(), map[string]any{"query": "golang concurrency", "count": 10})
-	if enResult.IsError {
-		t.Fatalf("english Execute() returned error: %s", enResult.ForLLM)
+	result := tool.Execute(context.Background(), map[string]any{"query": "golang concurrency", "count": 10})
+	if result.IsError {
+		t.Fatalf("Execute() returned error: %s", result.ForLLM)
 	}
 	if len(duckProvider.calls) != 1 || duckProvider.calls[0] != "golang concurrency" {
-		t.Fatalf("english query should use DuckDuckGo provider, calls=%v", duckProvider.calls)
-	}
-	if len(sogouProvider.calls) != 0 {
-		t.Fatalf("english query should not call Sogou provider, calls=%v", sogouProvider.calls)
-	}
-
-	zhResult := tool.Execute(context.Background(), map[string]any{"query": "今天上海天气"})
-	if zhResult.IsError {
-		t.Fatalf("chinese Execute() returned error: %s", zhResult.ForLLM)
-	}
-	if len(sogouProvider.calls) != 1 || sogouProvider.calls[0] != "今天上海天气" {
-		t.Fatalf("chinese query should use Sogou provider, calls=%v", sogouProvider.calls)
+		t.Fatalf("query should use DuckDuckGo provider, calls=%v", duckProvider.calls)
 	}
 }
 
@@ -2414,4 +1641,45 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
+}
+
+func TestWebTool_KnownProvidersPrunedToFour(t *testing.T) {
+	want := []string{"brave", "tavily", "searxng", "duckduckgo"}
+	if len(knownWebSearchProviders) != len(want) {
+		t.Fatalf("knownWebSearchProviders = %v, want %v", knownWebSearchProviders, want)
+	}
+	for i, name := range want {
+		if knownWebSearchProviders[i] != name {
+			t.Fatalf("knownWebSearchProviders[%d] = %q, want %q (all=%v)", i, knownWebSearchProviders[i], name, knownWebSearchProviders)
+		}
+	}
+	for _, pruned := range []string{"sogou", "kagi", "perplexity", "gemini", "glm_search", "baidu_search"} {
+		if isKnownWebSearchProvider(pruned) {
+			t.Errorf("pruned provider %q must not be known", pruned)
+		}
+		if WebSearchProviderReady(WebSearchToolOptions{}, pruned) {
+			t.Errorf("pruned provider %q must not be ready", pruned)
+		}
+	}
+	for _, name := range autoPrimaryWebSearchProviders {
+		if !isKnownWebSearchProvider(name) {
+			t.Errorf("autoPrimary provider %q must be in known set", name)
+		}
+	}
+	for _, name := range autoFallbackWebSearchProviders {
+		if !isKnownWebSearchProvider(name) {
+			t.Errorf("autoFallback provider %q must be in known set", name)
+		}
+	}
+	// Auto with only duckduckgo ready falls back to duckduckgo.
+	name, err := ResolveWebSearchProviderName(WebSearchToolOptions{
+		DuckDuckGoEnabled:    true,
+		DuckDuckGoMaxResults: 5,
+	}, "anything")
+	if err != nil {
+		t.Fatalf("ResolveWebSearchProviderName() error: %v", err)
+	}
+	if name != "duckduckgo" {
+		t.Fatalf("auto fallback = %q, want duckduckgo", name)
+	}
 }
