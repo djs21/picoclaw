@@ -38,12 +38,12 @@ func stripRecallNote(text string) string {
 
 // mergePrevious merges a previous summary with a fresh one (algo spec §3.6):
 //
-//	- sticky sections (Session Goal, Commits, User Preferences): line-level
-//	  dedup of prev then fresh, capped per section
-//	- Files And Changes: merged by category via mergeFileLines
-//	- Outstanding Context is volatile: fresh only
-//	- empty prev yields fresh; empty fresh yields prev
-//	- RECALL_NOTE is appended once at the end
+//   - sticky sections (Session Goal, Commits, User Preferences): line-level
+//     dedup of prev then fresh, capped per section
+//   - Files And Changes: merged by category via mergeFileLines
+//   - Outstanding Context is volatile: fresh only
+//   - empty prev yields fresh; empty fresh yields prev
+//   - RECALL_NOTE is appended once at the end
 func mergePrevious(prev, fresh string) string {
 	prev = stripRecallNote(prev)
 
@@ -230,12 +230,4 @@ func mergeFileLines(prev, fresh []string) []string {
 		}
 	}
 	return out
-}
-
-// itoa is a minimal integer-to-string converter (avoids strconv import).
-func itoa(n int) string {
-	if n < 10 {
-		return string(rune('0' + n))
-	}
-	return itoa(n/10) + string(rune('0'+n%10))
 }

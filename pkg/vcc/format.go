@@ -2,10 +2,6 @@ package vcc
 
 import "strings"
 
-// RECALL_NOTE is appended once to a merged summary to mark that a previous
-// summary was retained (algo spec summarize.ts:179-191).
-const RECALL_NOTE = "[RECALL] This summary continues from a previous compaction."
-
 // section renders a single summary block: a heading followed by "- " prefixed
 // entries. An empty line set yields an empty string so callers can skip it.
 func section(title string, lines []string) string {

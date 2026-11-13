@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func section(header string, lines ...string) string {
+func mkSection(header string, lines ...string) string {
 	b := new(strings.Builder)
 	b.WriteString("[" + header + "]")
 	for _, l := range lines {
@@ -15,8 +15,8 @@ func section(header string, lines ...string) string {
 }
 
 func TestMergePreviousStickySectionsDedupPrevThenFresh(t *testing.T) {
-	prev := section("Session Goal", "goal-a", "goal-b")
-	fresh := section("Session Goal", "goal-b", "goal-c")
+	prev := mkSection("Session Goal", "goal-a", "goal-b")
+	fresh := mkSection("Session Goal", "goal-b", "goal-c")
 	got := mergePrevious(prev, fresh)
 	if !strings.Contains(got, "[Session Goal]") {
 		t.Fatalf("expected [Session Goal] block, got:\n%s", got)
@@ -37,7 +37,7 @@ func TestMergePreviousStickySectionsCapped(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		fresh = append(fresh, "fresh-goal-"+itoa(i))
 	}
-	got := mergePrevious(section("Session Goal", prev...), section("Session Goal", fresh...))
+	got := mergePrevious(mkSection("Session Goal", prev...), mkSection("Session Goal", fresh...))
 	block := blockOf(t, got, "Session Goal")
 	// Session Goal cap 8, keep last 8 of deduped prev+fresh
 	if len(block) != sessionGoalCap {
@@ -49,8 +49,8 @@ func TestMergePreviousStickySectionsCapped(t *testing.T) {
 }
 
 func TestMergePreviousOutstandingContextVolatileFreshOnly(t *testing.T) {
-	prev := section("Outstanding Context", "old-ctx")
-	fresh := section("Outstanding Context", "new-ctx")
+	prev := mkSection("Outstanding Context", "old-ctx")
+	fresh := mkSection("Outstanding Context", "new-ctx")
 	got := mergePrevious(prev, fresh)
 	block := blockOf(t, got, "Outstanding Context")
 	if !eq(block, []string{"new-ctx"}) {
@@ -59,8 +59,8 @@ func TestMergePreviousOutstandingContextVolatileFreshOnly(t *testing.T) {
 }
 
 func TestMergePreviousOutstandingContextFreshEmpty(t *testing.T) {
-	prev := section("Outstanding Context", "old-ctx")
-	fresh := section("Outstanding Context")
+	prev := mkSection("Outstanding Context", "old-ctx")
+	fresh := mkSection("Outstanding Context")
 	got := mergePrevious(prev, fresh)
 	if strings.Contains(got, "[Outstanding Context]") {
 		t.Fatalf("volatile Outstanding Context with empty fresh should be omitted, got:\n%s", got)
@@ -68,7 +68,7 @@ func TestMergePreviousOutstandingContextFreshEmpty(t *testing.T) {
 }
 
 func TestMergePreviousEmptyPrevYieldsFresh(t *testing.T) {
-	fresh := section("Commits", "commit-1", "commit-2")
+	fresh := mkSection("Commits", "commit-1", "commit-2")
 	got := mergePrevious("", fresh)
 	block := blockOf(t, got, "Commits")
 	if !eq(block, []string{"commit-1", "commit-2"}) {
@@ -77,7 +77,7 @@ func TestMergePreviousEmptyPrevYieldsFresh(t *testing.T) {
 }
 
 func TestMergePreviousEmptyFreshYieldsPrev(t *testing.T) {
-	prev := section("User Preferences", "pref-1")
+	prev := mkSection("User Preferences", "pref-1")
 	got := mergePrevious(prev, "")
 	block := blockOf(t, got, "User Preferences")
 	if !eq(block, []string{"pref-1"}) {
@@ -141,8 +141,8 @@ func TestStripRecallNote(t *testing.T) {
 }
 
 func TestMergePreviousAppendsRecallNoteOnce(t *testing.T) {
-	prev := section("Session Goal", "goal")
-	fresh := section("Session Goal", "goal")
+	prev := mkSection("Session Goal", "goal")
+	fresh := mkSection("Session Goal", "goal")
 	got := mergePrevious(prev, fresh)
 	count := strings.Count(got, RECALL_NOTE)
 	if count != 1 {
@@ -152,7 +152,7 @@ func TestMergePreviousAppendsRecallNoteOnce(t *testing.T) {
 		t.Fatalf("RECALL_NOTE not appended at end:\n%s", got)
 	}
 	// previous summary containing RECALL_NOTE is stripped before merge (not restacked)
-	prevWithNote := section("Session Goal", "goal") + "\n\n" + RECALL_NOTE
+	prevWithNote := mkSection("Session Goal", "goal") + "\n\n" + RECALL_NOTE
 	got2 := mergePrevious(prevWithNote, fresh)
 	if strings.Count(got2, RECALL_NOTE) != 1 {
 		t.Fatalf("RECALL_NOTE count with noted prev = %d, want 1", strings.Count(got2, RECALL_NOTE))
