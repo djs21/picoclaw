@@ -28,6 +28,13 @@ func estimateTokensFromChars(chars int) int {
 	return chars / clampCalibration(defaultCharsPerToken)
 }
 
+// EstimateTokensFromChars is the public VCC token estimator. It returns an
+// upper-bound estimate for a UTF-8-aware character count, e.g.
+// EstimateTokensFromChars(len([]rune(summary))).
+func EstimateTokensFromChars(chars int) int {
+	return estimateTokensFromChars(chars)
+}
+
 // estimateMessageContentChars estimates the character count of message
 // content, which may be a plain string or an array of parts. Each image part
 // counts as imageChars (4800) characters (algo spec §3.7).

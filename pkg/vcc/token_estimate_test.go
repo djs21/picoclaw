@@ -9,7 +9,7 @@ func TestEstimateTokensFromChars(t *testing.T) {
 	}{
 		{0, 0},
 		{-5, 0},
-		{4, 1},   // 4 chars / 4 chars-per-token = 1 token
+		{4, 1}, // 4 chars / 4 chars-per-token = 1 token
 		{8, 2},
 		{100, 25},
 	}
@@ -17,6 +17,12 @@ func TestEstimateTokensFromChars(t *testing.T) {
 		if got := estimateTokensFromChars(tt.chars); got != tt.want {
 			t.Errorf("estimateTokensFromChars(%d) = %d, want %d", tt.chars, got, tt.want)
 		}
+	}
+}
+
+func TestEstimateTokensFromCharsExported(t *testing.T) {
+	if got, want := EstimateTokensFromChars(8), 2; got != want {
+		t.Errorf("EstimateTokensFromChars(8) = %d, want %d", got, want)
 	}
 }
 
@@ -63,9 +69,9 @@ func TestEstimateMessageContentCharsImage(t *testing.T) {
 
 func TestEstimateMessageContentCharsMixed(t *testing.T) {
 	parts := []interface{}{
-		map[string]interface{}{"text": "hi"},    // 2
-		map[string]interface{}{"image": true},   // 4800
-		map[string]interface{}{"text": "bye"},   // 3
+		map[string]interface{}{"text": "hi"},  // 2
+		map[string]interface{}{"image": true}, // 4800
+		map[string]interface{}{"text": "bye"}, // 3
 	}
 	got := estimateMessageContentChars(parts)
 	if got != 4805 {
