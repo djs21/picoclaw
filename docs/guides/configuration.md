@@ -143,6 +143,32 @@ Example clean web policy:
 }
 ```
 
+### Context Manager
+
+`context_manager` selects the context manager implementation that handles `Assemble`, `Compact`, `Ingest`, and `Clear` for a session. It is configured under `agents.defaults`.
+
+| Config Key | Type | Default | Description |
+|------------|------|---------|-------------|
+| `agents.defaults.context_manager` | string | `"legacy"` | Context manager implementation: `"legacy"` (hardcoded fallback), `"seahorse"` (SQLite-backed, platform-gated), or `"vcc"` (deterministic VCC conversation compiler). Unknown names silently fall back to `legacy`. |
+| `agents.defaults.context_manager_config` | object | `{}` | Implementation-specific settings. For `"vcc"` no special settings are required; defaults come from `vcc.Settings`. |
+
+The `"vcc"` context manager is the deterministic VCC conversation compiler: it makes **zero LLM calls**, has **flat cost**, merges sticky sections across compactions, and emits `Use vcc_recall ...` notes instead of relying on an LLM to summarize.
+
+Example:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "context_manager": "vcc",
+      "context_manager_config": {}
+    }
+  }
+}
+```
+
+These can also be overridden with environment variables `PICOCLAW_AGENTS_DEFAULTS_CONTEXT_MANAGER` and `PICOCLAW_AGENTS_DEFAULTS_CONTEXT_MANAGER_CONFIG`.
+
 ### Web launcher dashboard
 
 **picoclaw-launcher** serves a browser UI that requires password sign-in first. On first run, open `/launcher-setup` to create the dashboard password. Later manual sign-ins use `/launcher-login`.
