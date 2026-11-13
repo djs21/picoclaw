@@ -40,7 +40,8 @@ type SectionData struct {
 type Settings struct {
 	OverrideDefaultCompaction       bool `json:"overrideDefaultCompaction"`
 	SmartKeepTail                   bool `json:"smartKeepTail"`
-	ContinueAfterThresholdCompact   bool `json:"continueAfterThresholdCompact"`
+	ContinueAfterThresholdCompact   bool     `json:"continueAfterThresholdCompact"`
+	ExcludeTools                    []string `json:"excludeTools,omitempty"`
 }
 
 // FileOps records file activity observed during a session. It is the
