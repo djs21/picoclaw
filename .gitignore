@@ -74,6 +74,7 @@ docker/data
 
 .omc/
 .worktrees/
+.pi/
 
 # sbeads local database and secret keys
 .sbeads/*.db
