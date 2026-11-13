@@ -83,6 +83,13 @@ func TestClipExactLimit(t *testing.T) {
 	}
 }
 
+func TestClipUTF8(t *testing.T) {
+	got := clip("héllo wörld", 3)
+	if got != "hél" {
+		t.Errorf("clip(utf8) = %q, want %q", got, "hél")
+	}
+}
+
 func TestClipSentenceUnderLimit(t *testing.T) {
 	got := clipSentence("hi", 10)
 	if got != "hi" {

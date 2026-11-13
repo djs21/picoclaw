@@ -49,3 +49,32 @@ func TestCompileMergesPrevious(t *testing.T) {
 		t.Errorf("merged Compile missing fresh goal:\n%s", got)
 	}
 }
+
+func TestCompileSecondCompactionKeepsBriefAndSingleNote(t *testing.T) {
+	first := Compile(CompileInput{Messages: []map[string]interface{}{
+		{"role": "user", "content": "Scout the config system"},
+		{"role": "assistant", "content": "The config lives in pkg/config"},
+	}})
+	if first == "" {
+		t.Fatal("first Compile returned empty summary")
+	}
+	second := Compile(CompileInput{
+		PreviousSummary: first,
+		Messages: []map[string]interface{}{
+			{"role": "user", "content": "Update the configuration docs"},
+			{"role": "assistant", "content": "Docs updated now"},
+		},
+	})
+	if second == "" {
+		t.Fatal("second Compile returned empty summary")
+	}
+	normalized := strings.ReplaceAll(second, "\n", " ")
+	if got := strings.Count(normalized, "Use vcc_recall"); got != 1 {
+		t.Errorf("second compaction vcc_recall count = %d, want 1:\n%s", got, second)
+	}
+	for _, token := range []string{"[user]", "[assistant]", "Scout the config system", "Update the configuration docs"} {
+		if !strings.Contains(second, token) {
+			t.Errorf("second compaction missing %q:\n%s", token, second)
+		}
+	}
+}

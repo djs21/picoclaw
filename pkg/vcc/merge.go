@@ -1,11 +1,12 @@
 package vcc
 
 import (
+	"sort"
 	"strings"
 )
 
-// RECALL_NOTE is appended once at the end of a merged summary to avoid
-// compounding across compactions (algo spec §3.6; format.ts:49).
+// RECALL_NOTE is appended once at the end of a merged summary by the compile
+// pipeline, never by mergePrevious itself.
 const RECALL_NOTE = "Use vcc_recall to search for prior work, decisions, and context from before this summary. Do not redo work already completed."
 
 const (
@@ -24,62 +25,67 @@ var headerOrder = []string{
 	"User Preferences",
 }
 
-// stripRecallNote removes a trailing RECALL_NOTE (and surrounding
-// separators/whitespace) via lastIndexOf so it isn't restacked on merge
-// (algo spec §3.6, summarize.ts:207).
+// stripRecallNote removes a trailing RECALL_NOTE and its surrounding
+// SECTION_SEPARATOR so the note is not restacked on merge.
 func stripRecallNote(text string) string {
 	idx := strings.LastIndex(text, RECALL_NOTE)
 	if idx == -1 {
 		return text
 	}
-	before := text[:idx]
+	before := strings.TrimRight(text[:idx], "\n\r\t \f\v")
+	before = strings.TrimSuffix(before, SECTION_SEPARATOR)
 	return strings.TrimRight(before, "\n\r\t \f\v")
 }
 
-// mergePrevious merges a previous summary with a fresh one (algo spec §3.6):
-//
-//   - sticky sections (Session Goal, Commits, User Preferences): line-level
-//     dedup of prev then fresh, capped per section
-//   - Files And Changes: merged by category via mergeFileLines
+// mergePrevious merges a previous summary with a fresh one:
+//   - sticky sections keep prev-then-fresh deduplicated lines, capped
+//   - Files And Changes is merged per category with file-granular dedup
 //   - Outstanding Context is volatile: fresh only
+//   - brief transcripts are merged and capped at BRIEF_MAX_LINES
 //   - empty prev yields fresh; empty fresh yields prev
-//   - RECALL_NOTE is appended once at the end
+//
+// The RECALL_NOTE is NOT appended here; Compile is the single owner.
 func mergePrevious(prev, fresh string) string {
 	prev = stripRecallNote(prev)
+	fresh = stripRecallNote(fresh)
 
-	var parts []string
+	var headerParts []string
 	for _, h := range headerOrder {
-		pSec := headerBlock(prev, h)
-		fSec := headerBlock(fresh, h)
+		prevLines := headerBlock(prev, h)
+		freshLines := headerBlock(fresh, h)
 
 		var merged []string
 		switch h {
 		case "Outstanding Context":
-			// volatile: fresh only
-			merged = fSec
+			merged = freshLines
 		case "Files And Changes":
-			merged = mergeFileLines(pSec, fSec)
+			merged = mergeFileLines(prevLines, freshLines)
 		default:
-			// sticky: line-level dedup prev+fresh, capped
-			merged = dedupCap(pSec, fSec, capFor(h))
+			merged = dedupCap(prevLines, freshLines, capFor(h))
 		}
-
 		if len(merged) == 0 {
 			continue
 		}
-		b := new(strings.Builder)
-		b.WriteString("[" + h + "]")
-		for _, line := range merged {
-			b.WriteString("\n" + line)
+		clean := make([]string, len(merged))
+		for i, line := range merged {
+			clean[i] = strings.TrimPrefix(line, "- ")
 		}
-		parts = append(parts, b.String())
+		headerParts = append(headerParts, section(h, clean))
 	}
 
-	merged := strings.TrimSpace(strings.Join(parts, "\n\n"))
-	if merged != "" {
-		merged += "\n\n"
+	mergedBrief := mergeBriefTranscript(briefOf(prev), briefOf(fresh))
+	if mergedBrief != "" {
+		mergedBrief = capBrief(mergedBrief, BRIEF_MAX_LINES)
 	}
-	return merged + RECALL_NOTE
+
+	var parts []string
+	if len(headerParts) > 0 {
+		parts = append(parts, strings.Join(headerParts, "\n\n"))
+	}
+	if mergedBrief != "" {
+		parts = append(parts, mergedBrief)
+	}
+	return strings.Join(parts, SECTION_SEPARATOR)
 }
 
 // headerBlock returns the content lines (including the "- " prefix) under the
@@ -119,8 +125,29 @@ func headerBlock(text, header string) []string {
 	return lines
 }
 
-// dedupCap returns prev-then-fresh line-level deduplicated, keeping the last
-// `cap` entries when over capacity.
+// briefOf returns the transcript after the final SECTION_SEPARATOR, or "".
+func briefOf(text string) string {
+	idx := strings.LastIndex(text, SECTION_SEPARATOR)
+	if idx == -1 {
+		return ""
+	}
+	return strings.TrimSpace(text[idx+len(SECTION_SEPARATOR):])
+}
+
+// mergeBriefTranscript joins previous and fresh brief transcripts; empty prev
+// yields fresh and vice versa.
+func mergeBriefTranscript(prev, fresh string) string {
+	if prev == "" {
+		return fresh
+	}
+	if fresh == "" {
+		return prev
+	}
+	return prev + "\n\n" + fresh
+}
+
+// dedupCap deduplicates prev-then-fresh lines (order preserved) and keeps the
+// last `cap` entries when over capacity.
 func dedupCap(prev, fresh []string, cap int) []string {
 	seen := make(map[string]bool)
 	var out []string
@@ -130,7 +157,10 @@ func dedupCap(prev, fresh []string, cap int) []string {
 			out = append(out, s)
 		}
 	}
-	for _, s := range append(prev, fresh...) {
+	for _, s := range prev {
+		add(s)
+	}
+	for _, s := range fresh {
 		add(s)
 	}
 	if cap > 0 && len(out) > cap {
@@ -152,15 +182,18 @@ func capFor(header string) int {
 	return 0
 }
 
-// mergeFileLines merges "- Modified:", "- Created:", "- Read:" lines by
-// category: union paths per category, dedup (Modified wins over Created), cap
-// each category at fileCatCap with a "(+N more)" suffix (algo spec §3.6).
-func mergeFileLines(prev, fresh []string) []string {
-	type entry struct {
-		cat, path string
-	}
+type fileEntry struct {
+	cat  string
+	path string
+}
 
-	combined := []entry{}
+// mergeFileLines merges "- Modified:", "- Created:", and "- Read:" lines by
+// category. It splits comma-joined formatter output first, then unions paths
+// per category (Modified wins over Created) and caps each category with a
+// "(+N more)" suffix.
+func mergeFileLines(prev, fresh []string) []string {
+	catIndex := map[string]int{"Modified": 0, "Created": 1, "Read": 2}
+	var combined []fileEntry
 	seen := make(map[string]bool)
 	add := func(cat, path string) {
 		key := cat + "\x00" + path
@@ -168,36 +201,16 @@ func mergeFileLines(prev, fresh []string) []string {
 			return
 		}
 		seen[key] = true
-		combined = append(combined, entry{cat, path})
-	}
-
-	parse := func(line string) (cat, path string, ok bool) {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "- ") {
-			return "", "", false
-		}
-		line = strings.TrimPrefix(line, "- ")
-		if i := strings.Index(line, " ("); i != -1 {
-			line = line[:i]
-		}
-		line = strings.TrimSpace(line)
-		for _, cat := range []string{"Modified", "Created", "Read"} {
-			prefix := cat + ":"
-			if strings.HasPrefix(line, prefix) {
-				path := strings.TrimSpace(strings.TrimPrefix(line, prefix))
-				return cat, path, path != ""
-			}
-		}
-		return "", "", false
+		combined = append(combined, fileEntry{cat: cat, path: path})
 	}
 
 	for _, line := range append(prev, fresh...) {
-		if cat, path, ok := parse(line); ok {
-			add(cat, path)
+		cat, paths := parseFileLine(line)
+		for _, p := range paths {
+			add(cat, p)
 		}
 	}
 
-	// Modified wins over Created: drop Created paths already present as Modified.
 	modifiedSet := make(map[string]bool)
 	for _, e := range combined {
 		if e.cat == "Modified" {
@@ -205,7 +218,6 @@ func mergeFileLines(prev, fresh []string) []string {
 		}
 	}
 
-	catIndex := map[string]int{"Modified": 0, "Created": 1, "Read": 2}
 	byCat := [3][]string{}
 	for _, e := range combined {
 		if e.cat == "Created" && modifiedSet[e.path] {
@@ -218,16 +230,47 @@ func mergeFileLines(prev, fresh []string) []string {
 	var out []string
 	for _, cat := range catOrder {
 		paths := byCat[catIndex[cat]]
-		for i, p := range paths {
-			if i >= fileCatCap {
-				break
-			}
-			line := "- " + cat + ": " + p
-			if i == fileCatCap-1 && len(paths) > fileCatCap {
-				line += " (+" + itoa(len(paths)-fileCatCap) + " more)"
-			}
-			out = append(out, line)
+		if len(paths) == 0 {
+			continue
 		}
+		sort.Strings(paths)
+		if len(paths) <= fileCatCap {
+			out = append(out, cat+": "+strings.Join(paths, ", "))
+			continue
+		}
+		out = append(out, cat+": "+strings.Join(paths[:fileCatCap], ", ")+" (+"+itoa(len(paths)-fileCatCap)+" more)")
 	}
 	return out
+}
+
+// parseFileLine parses a line produced by headerBlock/formatter, e.g.
+// "- Modified: a.go, b.go (+2 more)", into a category and individual paths.
+func parseFileLine(line string) (string, []string) {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "- ") {
+		return "", nil
+	}
+	line = strings.TrimPrefix(line, "- ")
+	if i := strings.Index(line, " ("); i != -1 {
+		line = line[:i]
+	}
+	line = strings.TrimSpace(line)
+	for _, cat := range []string{"Modified", "Created", "Read"} {
+		prefix := cat + ":"
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		rest := strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		if rest == "" {
+			return cat, nil
+		}
+		var paths []string
+		for _, p := range strings.Split(rest, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				paths = append(paths, p)
+			}
+		}
+		return cat, paths
+	}
+	return "", nil
 }

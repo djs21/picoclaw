@@ -100,11 +100,8 @@ func TestMergeFileLinesByCategory(t *testing.T) {
 	// Modified wins over Created: src/b.go appears only under Modified.
 	// union: Modified=[a,b,d], Created=[], Read=[c,e]
 	want := []string{
-		"- Modified: src/a.go",
-		"- Modified: src/b.go",
-		"- Modified: src/d.go",
-		"- Read: src/c.go",
-		"- Read: src/e.go",
+		"Modified: src/a.go, src/b.go, src/d.go",
+		"Read: src/c.go, src/e.go",
 	}
 	if !eq(got, want) {
 		t.Fatalf("mergeFileLines = %v, want %v", got, want)
@@ -118,11 +115,15 @@ func TestMergeFileLinesCappedWithMoreSuffix(t *testing.T) {
 	}
 	got := mergeFileLines(prev, fresh)
 	// cap each category at 10 with "(+N more)" suffix
-	if len(got) != fileCatCap {
-		t.Fatalf("Modified category len = %d, want %d (cap)", len(got), fileCatCap)
+	if len(got) != 1 {
+		t.Fatalf("Modified category should be one comma-joined line, got %d lines: %v", len(got), got)
 	}
-	if !strings.HasSuffix(got[len(got)-1], " (+2 more)") {
-		t.Fatalf("expected cap suffix, got last line: %s", got[len(got)-1])
+	last := got[len(got)-1]
+	if !strings.HasSuffix(last, " (+2 more)") {
+		t.Fatalf("expected cap suffix, got line: %s", last)
+	}
+	if strings.Count(last, "src/m") != fileCatCap {
+		t.Fatalf("expected %d paths in capped line, got: %s", fileCatCap, last)
 	}
 }
 
@@ -140,22 +141,32 @@ func TestStripRecallNote(t *testing.T) {
 	}
 }
 
-func TestMergePreviousAppendsRecallNoteOnce(t *testing.T) {
+func TestMergePreviousDoesNotAppendRecallNote(t *testing.T) {
 	prev := mkSection("Session Goal", "goal")
 	fresh := mkSection("Session Goal", "goal")
 	got := mergePrevious(prev, fresh)
-	count := strings.Count(got, RECALL_NOTE)
-	if count != 1 {
-		t.Fatalf("RECALL_NOTE count = %d, want 1", count)
+	if count := strings.Count(got, RECALL_NOTE); count != 0 {
+		t.Fatalf("mergePrevious RECALL_NOTE count = %d, want 0 (Compile owns the note)", count)
 	}
-	if !strings.HasSuffix(strings.TrimSpace(got), RECALL_NOTE) {
-		t.Fatalf("RECALL_NOTE not appended at end:\n%s", got)
-	}
-	// previous summary containing RECALL_NOTE is stripped before merge (not restacked)
-	prevWithNote := mkSection("Session Goal", "goal") + "\n\n" + RECALL_NOTE
+	// previous summary containing RECALL_NOTE is stripped before merge
+	prevWithNote := mkSection("Session Goal", "goal") + SECTION_SEPARATOR + RECALL_NOTE
 	got2 := mergePrevious(prevWithNote, fresh)
-	if strings.Count(got2, RECALL_NOTE) != 1 {
-		t.Fatalf("RECALL_NOTE count with noted prev = %d, want 1", strings.Count(got2, RECALL_NOTE))
+	if strings.Count(got2, RECALL_NOTE) != 0 {
+		t.Fatalf("noted prev RECALL_NOTE count = %d, want 0", strings.Count(got2, RECALL_NOTE))
+	}
+}
+
+func TestMergePreviousMergesBriefTranscript(t *testing.T) {
+	prev := mkSection("Session Goal", "goal") + SECTION_SEPARATOR + "[user]\nold user line"
+	fresh := mkSection("Session Goal", "goal") + SECTION_SEPARATOR + "[assistant]\nnew assistant line"
+	got := mergePrevious(prev, fresh)
+	for _, want := range []string{"[Session Goal]", "[user]", "[assistant]", "old user line", "new assistant line"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("mergePrevious missing %q in merged brief:\n%s", want, got)
+		}
+	}
+	if strings.Count(got, RECALL_NOTE) != 0 {
+		t.Fatalf("mergePrevious should not emit RECALL_NOTE:\n%s", got)
 	}
 }
 

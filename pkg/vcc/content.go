@@ -48,10 +48,14 @@ func sanitize(s string) string {
 
 // clip truncates s to at most max runes (algo spec §3.1).
 func clip(s string, max int) string {
-	if len(s) <= max {
+	runes := []rune(s)
+	if len(runes) <= max {
 		return s
 	}
-	return s[:max]
+	if max <= 0 {
+		return ""
+	}
+	return string(runes[:max])
 }
 
 // clipSentence truncates s to at most max runes, preferring a sentence
