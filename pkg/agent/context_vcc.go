@@ -1,145 +1,198 @@
-// Package agent provides the VCC (Verbal Context Compression) ContextManager
-// adapter. VCC is deterministic and never invokes an LLM.
 package agent
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	runtimeevents "github.com/sipeed/picoclaw/pkg/events"
 	"github.com/sipeed/picoclaw/pkg/providers"
 	"github.com/sipeed/picoclaw/pkg/vcc"
 )
 
-// vccSession holds the per-session in-memory state for the VCC ContextManager.
-type vccSession struct {
-	mu       sync.Mutex
-	messages []providers.Message
-	summary  string
-}
-
 // vccContextManager adapts the deterministic VCC compiler to agent.ContextManager.
-// It keeps raw messages per session in memory and compacts them into a summary
-// via vcc.Compile. VCC never invokes an LLM.
+// It persists through SessionStore and never invokes an LLM.
 type vccContextManager struct {
-	mu      sync.Mutex
-	al      *AgentLoop
-	sessions map[string]*vccSession
+	al       *AgentLoop
+	settings vcc.Settings
 }
 
 // newVCCContextManager creates a VCC-backed ContextManager.
-func newVCCContextManager(_ json.RawMessage, al *AgentLoop) (ContextManager, error) {
+func newVCCContextManager(cfg json.RawMessage, al *AgentLoop) (ContextManager, error) {
 	if al == nil {
 		return nil, fmt.Errorf("vcc: AgentLoop is required")
 	}
+	settings := vcc.DEFAULT_SETTINGS
+	if len(cfg) > 0 {
+		parsed, err := vcc.ParseSettings(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("vcc: parse settings: %w", err)
+		}
+		settings = parsed
+	}
 	return &vccContextManager{
-		al:      al,
-		sessions: make(map[string]*vccSession),
+		al:       al,
+		settings: settings,
 	}, nil
 }
 
-// session returns the per-session state for sessionKey, creating it on first use.
-func (m *vccContextManager) session(sessionKey string) *vccSession {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.sessions == nil {
-		m.sessions = make(map[string]*vccSession)
+func (m *vccContextManager) sessionsFor(key string) (*AgentInstance, error) {
+	agent := m.al.agentForSession(key)
+	if agent == nil || agent.Sessions == nil {
+		return nil, fmt.Errorf("vcc: sessions not initialized")
 	}
-	s, ok := m.sessions[sessionKey]
-	if !ok {
-		s = &vccSession{}
-		m.sessions[sessionKey] = s
-	}
-	return s
+	return agent, nil
 }
 
-// Assemble returns the stored summary for the session. When no summary exists
-// yet, it returns the stored raw messages as History. VCC never invokes an LLM.
-func (m *vccContextManager) Assemble(ctx context.Context, req *AssembleRequest) (*AssembleResponse, error) {
+// Assemble returns the session history and summary from SessionStore. VCC never
+// invokes an LLM, so this is just a pass-through of the persistent state.
+func (m *vccContextManager) Assemble(_ context.Context, req *AssembleRequest) (*AssembleResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("vcc assemble: nil request")
 	}
-	s := m.session(req.SessionKey)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.summary != "" {
-		return &AssembleResponse{
-			Summary: s.summary,
-		}, nil
+	agent, err := m.sessionsFor(req.SessionKey)
+	if err != nil {
+		return nil, err
 	}
-	history := make([]providers.Message, len(s.messages))
-	copy(history, s.messages)
 	return &AssembleResponse{
-		History: history,
+		History: agent.Sessions.GetHistory(req.SessionKey),
+		Summary: agent.Sessions.GetSummary(req.SessionKey),
 	}, nil
 }
 
-// Compact compresses the session's stored messages into a summary via vcc.Compile.
-// On success the summary is stored and the raw messages are cleared.
-func (m *vccContextManager) Compact(ctx context.Context, req *CompactRequest) error {
+// Compact compiles the persisted session history into a deterministic VCC
+// summary, persists it, clears the raw history, and emits both compress and
+// session-summarize events.
+func (m *vccContextManager) Compact(_ context.Context, req *CompactRequest) error {
 	if req == nil {
 		return nil
 	}
-	s := m.session(req.SessionKey)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.messages) == 0 {
+	agent, err := m.sessionsFor(req.SessionKey)
+	if err != nil {
+		return err
+	}
+
+	history := agent.Sessions.GetHistory(req.SessionKey)
+	if len(history) == 0 {
 		return nil
 	}
-	raw, err := json.Marshal(s.messages)
+
+	summary, err := compileVCC(history, agent.Sessions.GetSummary(req.SessionKey))
 	if err != nil {
-		return fmt.Errorf("vcc compact: marshal messages: %w", err)
+		return err
 	}
-	var msgs []map[string]interface{}
-	if err := json.Unmarshal(raw, &msgs); err != nil {
-		return fmt.Errorf("vcc compact: unmarshal messages: %w", err)
-	}
-	summary := vcc.Compile(vcc.CompileInput{
-		Messages:         msgs,
-		PreviousSummary:  s.summary,
-	})
 	if summary == "" {
 		return nil
 	}
-	dropped := len(s.messages)
-	s.summary = summary
-	s.messages = nil
+
+	if req.Reason == ContextCompressReasonRetry && req.Budget > 0 {
+		summary = fitSummaryToBudget(summary, history, agent.Sessions.GetSummary(req.SessionKey), req.Budget)
+	}
+
+	agent.Sessions.SetSummary(req.SessionKey, summary)
+	agent.Sessions.SetHistory(req.SessionKey, []providers.Message{})
+	if err := agent.Sessions.Save(req.SessionKey); err != nil {
+		return fmt.Errorf("vcc compact: save session: %w", err)
+	}
+	dropped := len(history)
+
 	m.al.emitEvent(
 		runtimeevents.KindAgentContextCompress,
-		m.al.newTurnEventScope("", req.SessionKey, nil).meta(0, "vccCompact", "turn.context.compress"),
+		m.al.newTurnEventScope(agent.ID, req.SessionKey, nil).meta(0, "vccCompact", "turn.context.compress"),
 		ContextCompressPayload{
 			Reason:            req.Reason,
 			DroppedMessages:   dropped,
 			RemainingMessages: 0,
 		},
 	)
+	m.al.emitEvent(
+		runtimeevents.KindAgentSessionSummarize,
+		m.al.newTurnEventScope(agent.ID, req.SessionKey, nil).meta(0, "vccCompact", "turn.session.summarize"),
+		SessionSummarizePayload{
+			SummarizedMessages: dropped,
+			KeptMessages:       0,
+			SummaryLen:         len(summary),
+			OmittedOversized:   false,
+		},
+	)
 	return nil
 }
 
-// Ingest appends a message to the session's in-memory store.
-func (m *vccContextManager) Ingest(ctx context.Context, req *IngestRequest) error {
-	if req == nil {
-		return nil
+// Ingest is a no-op because the pipeline persists each message to SessionStore
+// before calling Ingest (same contract as the legacy ContextManager).
+func (m *vccContextManager) Ingest(_ context.Context, _ *IngestRequest) error {
+	return nil
+}
+
+// Clear removes the session history and summary from persistent storage.
+func (m *vccContextManager) Clear(_ context.Context, sessionKey string) error {
+	agent, err := m.sessionsFor(sessionKey)
+	if err != nil {
+		return err
 	}
-	s := m.session(req.SessionKey)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.messages = append(s.messages, req.Message)
-	return nil
-}
-
-// Clear removes all stored context for the session.
-func (m *vccContextManager) Clear(ctx context.Context, sessionKey string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.sessions, sessionKey)
-	return nil
+	agent.Sessions.SetHistory(sessionKey, []providers.Message{})
+	agent.Sessions.SetSummary(sessionKey, "")
+	return agent.Sessions.Save(sessionKey)
 }
 
 func init() {
 	if err := RegisterContextManager("vcc", newVCCContextManager); err != nil {
 		panic(fmt.Sprintf("register vcc context manager: %v", err))
 	}
+}
+
+func providerMessagesToMaps(msgs []providers.Message) ([]map[string]interface{}, error) {
+	raw, err := json.Marshal(msgs)
+	if err != nil {
+		return nil, fmt.Errorf("vcc compact: marshal messages: %w", err)
+	}
+	var out []map[string]interface{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("vcc compact: unmarshal messages: %w", err)
+	}
+	return out, nil
+}
+
+func compileVCC(history []providers.Message, previous string) (string, error) {
+	msgs, err := providerMessagesToMaps(history)
+	if err != nil {
+		return "", err
+	}
+	return vcc.Compile(vcc.CompileInput{
+		Messages:        msgs,
+		PreviousSummary: previous,
+	}), nil
+}
+
+func fitSummaryToBudget(summary string, history []providers.Message, previous string, budget int) string {
+	estimate := func(s string) int {
+		return vcc.EstimateTokensFromChars(len([]rune(s)))
+	}
+
+	workingHistory := append([]providers.Message(nil), history...)
+	workingSummary := summary
+	for len(workingHistory) > 1 && estimate(workingSummary) > budget {
+		workingHistory = workingHistory[1:]
+		next, err := compileVCC(workingHistory, previous)
+		if err != nil || next == "" {
+			break
+		}
+		workingSummary = next
+		// Once the message set changed, the previous summary no longer needs to
+		// merge with the already-summarized portion we just removed.
+		if len(workingHistory) > 1 {
+			previous = ""
+		}
+	}
+
+	if estimate(workingSummary) <= budget {
+		return workingSummary
+	}
+	// Hard deterministic fallback: cut the summary to fit the budget.
+	maxRunes := budget*4 + 4
+	runes := []rune(workingSummary)
+	if len(runes) <= maxRunes {
+		return workingSummary
+	}
+	return string(runes[:maxRunes])
 }
