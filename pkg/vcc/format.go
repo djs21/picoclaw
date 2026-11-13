@@ -1,6 +1,19 @@
 package vcc
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+const (
+	// TUI_SAFE_LINE_CHARS is the default soft-wrap width for terminal-safe
+	// summaries (algo spec format.ts).
+	TUI_SAFE_LINE_CHARS = 120
+
+	// SECTION_SEPARATOR separates summary sections in the rendered output
+	// (algo spec format.ts).
+	SECTION_SEPARATOR = "\n\n---\n\n"
+)
 
 // section renders a single summary block: a heading followed by "- " prefixed
 // entries. An empty line set yields an empty string so callers can skip it.
@@ -22,26 +35,28 @@ func section(title string, lines []string) string {
 
 // formatSummary renders SectionData as plain structured text. Sections appear
 // in fixed order: Session Goal, Files And Changes, Commits, Outstanding
-// Context, User Preferences. Empty sections are omitted. BriefTranscript is
-// rendered elsewhere (capBrief/brief.go), not here.
+// Context, User Preferences, followed by the capped brief transcript. The
+// result is soft-wrapped to TUI_SAFE_LINE_CHARS columns (algo spec format.ts).
 func formatSummary(d SectionData) string {
 	var parts []string
-	if s := section("Session Goal", d.SessionGoal); s != "" {
-		parts = append(parts, s)
+	for _, s := range []string{
+		section("Session Goal", d.SessionGoal),
+		section("Files And Changes", d.FilesAndChanges),
+		section("Commits", d.Commits),
+		section("Outstanding Context", d.OutstandingContext),
+		section("User Preferences", d.UserPreferences),
+	} {
+		if s != "" {
+			parts = append(parts, s)
+		}
 	}
-	if s := section("Files And Changes", d.FilesAndChanges); s != "" {
-		parts = append(parts, s)
+	if d.BriefTranscript != "" {
+		parts = append(parts, capBrief(d.BriefTranscript, BRIEF_MAX_LINES))
 	}
-	if s := section("Commits", d.Commits); s != "" {
-		parts = append(parts, s)
+	if len(parts) == 0 {
+		return ""
 	}
-	if s := section("Outstanding Context", d.OutstandingContext); s != "" {
-		parts = append(parts, s)
-	}
-	if s := section("User Preferences", d.UserPreferences); s != "" {
-		parts = append(parts, s)
-	}
-	return strings.Join(parts, "\n")
+	return wrapLongLines(strings.Join(parts, SECTION_SEPARATOR), TUI_SAFE_LINE_CHARS)
 }
 
 // wrapLongLines wraps every line of s so no line exceeds max chars. Lines are
@@ -79,13 +94,31 @@ func wrapLine(line string, max int) string {
 	return out.String()
 }
 
-// capBrief returns at most maxLines of the brief transcript lines.
-func capBrief(lines []string, maxLines int) []string {
-	if maxLines < 0 {
-		maxLines = 0
+var briefHeaderRe = regexp.MustCompile(`^\[.+\]`)
+
+// capBrief keeps at most maxLines of the brief transcript, preserving the
+// newest lines and avoiding a cut immediately before a section header.
+func capBrief(text string, maxLines int) string {
+	if text == "" || maxLines <= 0 {
+		return ""
 	}
+	lines := strings.Split(text, "\n")
 	if len(lines) <= maxLines {
-		return lines
+		return text
 	}
-	return lines[:maxLines]
+	omitted := len(lines) - maxLines
+	kept := lines[len(lines)-maxLines:]
+	if firstHeader := findFirstHeader(kept); firstHeader > 0 {
+		kept = kept[firstHeader:]
+	}
+	return "...(" + itoa(omitted) + " earlier lines omitted)\n\n" + strings.Join(kept, "\n")
+}
+
+func findFirstHeader(lines []string) int {
+	for i, line := range lines {
+		if briefHeaderRe.MatchString(line) {
+			return i
+		}
+	}
+	return -1
 }

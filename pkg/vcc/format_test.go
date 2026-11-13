@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	wrapMax    = 120
-	briefCap   = 120
+	wrapMax  = 120
+	briefCap = 120
 )
 
 func TestRECALL_NOTEConstant(t *testing.T) {
@@ -80,17 +80,20 @@ func TestFormatSummaryEmptyInput(t *testing.T) {
 	}
 }
 
-func TestFormatSummaryBriefTranscriptNotRendered(t *testing.T) {
+func TestFormatSummaryBriefTranscriptRendered(t *testing.T) {
 	d := SectionData{
-		BriefTranscript:    "brief line one\nbrief line two",
-		SessionGoal:        []string{"a goal"},
+		BriefTranscript: "[user]\nbrief line one",
+		SessionGoal:     []string{"a goal"},
 	}
 	got := formatSummary(d)
-	if strings.Contains(got, "brief line one") {
-		t.Errorf("formatSummary should not render BriefTranscript:\n%s", got)
+	if !strings.Contains(got, "brief line one") {
+		t.Errorf("formatSummary should render BriefTranscript:\n%s", got)
 	}
 	if !strings.Contains(got, "## Session Goal\n- a goal") {
 		t.Errorf("formatSummary missing goal:\n%s", got)
+	}
+	if !strings.Contains(got, "---") {
+		t.Errorf("formatSummary should separate sections with ---:\n%s", got)
 	}
 }
 
@@ -149,34 +152,37 @@ func TestWrapLongLinesPreservesLineBreaks(t *testing.T) {
 }
 
 func TestCapBriefUnderLimit(t *testing.T) {
-	lines := []string{"a", "b", "c"}
-	got := capBrief(lines, briefCap)
-	if len(got) != len(lines) {
-		t.Errorf("capBrief(under) = %v, want %v", got, lines)
+	text := "[user]\na\n[assistant]\nb"
+	got := capBrief(text, briefCap)
+	if got != text {
+		t.Errorf("capBrief(under) = %q, want %q", got, text)
 	}
 }
 
 func TestCapBriefOverLimit(t *testing.T) {
 	lines := make([]string, briefCap+10)
 	for i := range lines {
-		lines[i] = string(rune('a' + i%26))
+		lines[i] = "line" + itoa(i)
 	}
-	got := capBrief(lines, briefCap)
-	if len(got) != briefCap {
-		t.Errorf("capBrief(over) len = %d, want %d", len(got), briefCap)
+	text := strings.Join(lines, "\n")
+	got := capBrief(text, briefCap)
+	if !strings.HasPrefix(got, "...(10 earlier lines omitted)\n\n") {
+		t.Errorf("capBrief(over) missing omission note: %q", got)
+	}
+	body := strings.Split(got, "\n")
+	if len(body) > briefCap+3 {
+		t.Errorf("capBrief(over) returned too many lines: %d", len(body))
 	}
 }
 
 func TestCapBriefZeroLimit(t *testing.T) {
-	got := capBrief([]string{"a", "b"}, 0)
-	if len(got) != 0 {
-		t.Errorf("capBrief(zero) = %v, want empty", got)
+	if got := capBrief("a\nb", 0); got != "" {
+		t.Errorf("capBrief(zero) = %q, want empty", got)
 	}
 }
 
-func TestCapBriefNil(t *testing.T) {
-	got := capBrief(nil, briefCap)
-	if got != nil {
-		t.Errorf("capBrief(nil) = %v, want nil", got)
+func TestCapBriefEmpty(t *testing.T) {
+	if got := capBrief("", briefCap); got != "" {
+		t.Errorf("capBrief(empty) = %q, want empty", got)
 	}
 }
