@@ -22,8 +22,9 @@ func section(title string, lines []string) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("## ")
+	b.WriteString("[")
 	b.WriteString(title)
+	b.WriteString("]")
 	b.WriteByte('\n')
 	for _, line := range lines {
 		b.WriteString("- ")
@@ -38,17 +39,22 @@ func section(title string, lines []string) string {
 // Context, User Preferences, followed by the capped brief transcript. The
 // result is soft-wrapped to TUI_SAFE_LINE_CHARS columns (algo spec format.ts).
 func formatSummary(d SectionData) string {
-	var parts []string
-	for _, s := range []string{
+	headerSections := []string{
 		section("Session Goal", d.SessionGoal),
 		section("Files And Changes", d.FilesAndChanges),
 		section("Commits", d.Commits),
 		section("Outstanding Context", d.OutstandingContext),
 		section("User Preferences", d.UserPreferences),
-	} {
+	}
+	var headerParts []string
+	for _, s := range headerSections {
 		if s != "" {
-			parts = append(parts, s)
+			headerParts = append(headerParts, s)
 		}
+	}
+	var parts []string
+	if len(headerParts) > 0 {
+		parts = append(parts, strings.Join(headerParts, "\n\n"))
 	}
 	if d.BriefTranscript != "" {
 		parts = append(parts, capBrief(d.BriefTranscript, BRIEF_MAX_LINES))

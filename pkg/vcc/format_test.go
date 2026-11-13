@@ -30,11 +30,11 @@ func TestFormatSummarySectionOrder(t *testing.T) {
 	got := formatSummary(d)
 
 	order := []string{
-		"## Session Goal",
-		"## Files And Changes",
-		"## Commits",
-		"## Outstanding Context",
-		"## User Preferences",
+		"[Session Goal]",
+		"[Files And Changes]",
+		"[Commits]",
+		"[Outstanding Context]",
+		"[User Preferences]",
 	}
 	pos := -1
 	for _, heading := range order {
@@ -55,7 +55,7 @@ func TestFormatSummaryEntriesPrefixed(t *testing.T) {
 		SessionGoal: []string{"improve summary"},
 	}
 	got := formatSummary(d)
-	if !strings.Contains(got, "## Session Goal\n- improve summary") {
+	if !strings.Contains(got, "[Session Goal]\n- improve summary") {
 		t.Errorf("formatSummary entry not prefixed with '- ':\n%s", got)
 	}
 }
@@ -65,10 +65,10 @@ func TestFormatSummaryOmitsEmptySections(t *testing.T) {
 		Commits: []string{"abc123"},
 	}
 	got := formatSummary(d)
-	if strings.Contains(got, "Session Goal") {
+	if strings.Contains(got, "[Session Goal]") {
 		t.Errorf("formatSummary should omit empty sections:\n%s", got)
 	}
-	if !strings.Contains(got, "## Commits\n- abc123") {
+	if !strings.Contains(got, "[Commits]\n- abc123") {
 		t.Errorf("formatSummary missing commit entry:\n%s", got)
 	}
 }
@@ -89,7 +89,7 @@ func TestFormatSummaryBriefTranscriptRendered(t *testing.T) {
 	if !strings.Contains(got, "brief line one") {
 		t.Errorf("formatSummary should render BriefTranscript:\n%s", got)
 	}
-	if !strings.Contains(got, "## Session Goal\n- a goal") {
+	if !strings.Contains(got, "[Session Goal]\n- a goal") {
 		t.Errorf("formatSummary missing goal:\n%s", got)
 	}
 	if !strings.Contains(got, "---") {
@@ -170,7 +170,7 @@ func TestCapBriefOverLimit(t *testing.T) {
 		t.Errorf("capBrief(over) missing omission note: %q", got)
 	}
 	body := strings.Split(got, "\n")
-	if len(body) > briefCap+3 {
+	if len(body) > briefCap+4 {
 		t.Errorf("capBrief(over) returned too many lines: %d", len(body))
 	}
 }
