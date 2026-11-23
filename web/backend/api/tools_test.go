@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/sipeed/picoclaw/pkg/config"
@@ -65,6 +66,7 @@ func TestHandleListTools(t *testing.T) {
 		t.Fatalf("skills status = %q, want enabled", gotTools["skills"].Status)
 	}
 	for _, removed := range []string{
+		"send_file",
 		"find_skills",
 		"install_skill",
 		"write_file",
@@ -145,27 +147,36 @@ func TestHandleUpdateToolStateRejectsRemovedTools(t *testing.T) {
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 
-	for _, name := range []string{
-		"find_skills",
-		"install_skill",
-		"write_file",
-		"append_file",
-		"spawn_status",
-		"subagent",
-		"i2c",
-		"spi",
-		"serial",
-	} {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{name: "send_file", want: "was consolidated into message"},
+		{name: "find_skills", want: "was removed"},
+		{name: "install_skill", want: "was removed"},
+		{name: "spawn_status", want: "was consolidated into spawn"},
+		{name: "subagent", want: "was consolidated into spawn"},
+		{name: "write_file", want: "cannot be updated"},
+		{name: "append_file", want: "cannot be updated"},
+		{name: "i2c", want: "cannot be updated"},
+		{name: "spi", want: "cannot be updated"},
+		{name: "serial", want: "cannot be updated"},
+	}
+
+	for _, tt := range tests {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(
 			http.MethodPut,
-			"/api/tools/"+name+"/state",
+			"/api/tools/"+tt.name+"/state",
 			bytes.NewBufferString(`{"enabled":true}`),
 		)
 		req.Header.Set("Content-Type", "application/json")
 		mux.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("%s status = %d, want %d, body=%s", name, rec.Code, http.StatusBadRequest, rec.Body.String())
+			t.Fatalf("%s status = %d, want %d, body=%s", tt.name, rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
+		if body := rec.Body.String(); !strings.Contains(body, tt.want) {
+			t.Fatalf("%s body = %q, want it to contain %q", tt.name, body, tt.want)
 		}
 	}
 }
