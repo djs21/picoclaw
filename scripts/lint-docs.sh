@@ -95,14 +95,6 @@ while IFS= read -r path; do
 	if is_localized_doc "$path"; then
 		english="$(english_sibling "$path")"
 
-		# docs/design/ holds two Chinese-only documents that never had an English
-		# source: hook-system-design.zh.md and
-		# issue-783-investigation-and-fix-plan.zh.md. They await a translate-or-remove
-		# decision and must not be deleted. Every other localized doc fails lint.
-		if [[ "$path" == docs/design/* && ! -f "$english" ]]; then
-			continue
-		fi
-
 		error \
 			"$path" \
 			"documentation is English-only; localized variants are not kept" \

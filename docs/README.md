@@ -91,8 +91,6 @@ The local docs linter currently checks these common cases:
 - no nested locale buckets under typed docs directories
 - no extra Markdown files directly under `docs/` except `docs/README.md` and the DOX `docs/AGENTS.md`
 
-`docs/design/` is the only exception: `hook-system-design.zh.md` and `issue-783-investigation-and-fix-plan.zh.md` are Chinese-only documents that never had an English source and await a translate-or-remove decision.
-
 `make lint-docs` is a local consistency check for common naming and placement mistakes. It helps contributors stay close to the recommended layout, but it is not intended to describe every acceptable documentation pattern in the repository.
 
 When a check fails, `make lint-docs` prints the failing path, the reason, and a suggested fix.

@@ -741,3 +741,13 @@ It is not yet well suited for:
 - Full inbound/outbound message interception across the whole platform
 
 If you want a real human approval workflow, use hooks as the approval entry point and keep the state machine plus channel interaction in a separate `ApprovalManager`.
+
+## Design Notes
+
+Carried over from the original design draft (`docs/design/hook-system-design.zh.md`, since removed). The implementation above already covers what that draft proposed; these notes record _why_ it looks this way and what was deliberately left out.
+
+**Why observers and interceptors are separate interfaces.** An early survey compared two external projects: one with three separate routing layers (judged too heavy for this codebase) and one that splits read-only observation from flow-changing interception (adopted). The rule that fell out of it: observers must never block the loop (short default timeout, failures logged and ignored), while interceptors run synchronously with explicit timeouts — and approval defaults to deny on timeout.
+
+**Why external hooks use stdio instead of HTTP webhooks.** HTTP-style webhooks fit events flowing _into_ the system, not synchronous in-turn decisions (rewrite / allow / deny). Spawning an external process and exchanging one JSON message per line over its standard input/output works on every platform with no ports and no discovery step, which is why it was chosen for V1.
+
+**Deliberately deferred.** A read-only marker on tools plus a unified read-only parallel execution strategy; Unix-socket / named-pipe transports; a hook management CLI and automatic hook discovery; a webhook-to-inbound-message entry point. Sub-turn hook wiring has since landed; the items above remain open.

@@ -12,10 +12,6 @@ cross-cutting changes (e.g. tool removal).
 - Documentation is English-only: one canonical English file per document. Do not
   add localized variants (`<name>.<locale>.md`, `<name>_<locale>.md`) or
   locale-named subdirectories under `docs/`; `scripts/lint-docs.sh` rejects both.
-- `docs/design/` holds two Chinese-only documents with no English source
-  (`hook-system-design.zh.md`, `issue-783-investigation-and-fix-plan.zh.md`);
-  they await a translate-or-remove decision. Every other localized doc fails
-  lint.
 - Directory type comes first: `docs/<type>/<name>.md`. Only `docs/README.md` and
   the DOX `docs/AGENTS.md` may sit directly under `docs/`.
 
