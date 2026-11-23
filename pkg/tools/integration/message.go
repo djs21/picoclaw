@@ -373,6 +373,16 @@ func normalizeMessageMediaType(typeHint, filename, contentType string) string {
 	}
 
 	ct := strings.ToLower(strings.TrimSpace(contentType))
+
+	// SVG is an image MIME type, but raster-only delivery endpoints such as
+	// Telegram SendPhoto reject it. Treat it as a file/document instead.
+	// This mirrors inferMediaType in pkg/agent, which the message tool bypasses
+	// because it sends its own parts instead of returning ToolResult.Media.
+	// An explicit media[].type hint still wins: it is a caller override.
+	if strings.HasPrefix(ct, "image/svg") || strings.ToLower(filepath.Ext(filename)) == ".svg" {
+		return "file"
+	}
+
 	switch {
 	case strings.HasPrefix(ct, "image/"):
 		return "image"

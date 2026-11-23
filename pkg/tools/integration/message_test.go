@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/sipeed/picoclaw/pkg/bus"
+	"github.com/sipeed/picoclaw/pkg/config"
 	"github.com/sipeed/picoclaw/pkg/media"
 	"github.com/sipeed/picoclaw/pkg/session"
 )
@@ -539,5 +541,206 @@ func TestMessageTool_Execute_FilePathWorkspaceRestriction(t *testing.T) {
 	})
 	if !result.IsError {
 		t.Fatal("expected error due to workspace restriction, got success")
+	}
+}
+
+func TestMessageTool_Execute_SVGTypedAsFile(t *testing.T) {
+	tool := NewMessageTool()
+	store := media.NewFileMediaStore()
+	dir := t.TempDir()
+	svgPath := filepath.Join(dir, "diagram.svg")
+	if err := os.WriteFile(svgPath, []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`), 0o644); err != nil {
+		t.Fatalf("write svg: %v", err)
+	}
+	tool.ConfigureLocalMedia(dir, true, 1024*1024, []*regexp.Regexp{})
+	tool.SetMediaStore(store)
+
+	var gotParts []bus.MediaPart
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		gotParts = append([]bus.MediaPart(nil), mediaParts...)
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{"file_path": "diagram.svg"})
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", result.ForLLM)
+	}
+	if len(gotParts) != 1 {
+		t.Fatalf("expected 1 media part, got %d", len(gotParts))
+	}
+	// Telegram SendPhoto rejects vector SVG, so it must be delivered as a document.
+	if gotParts[0].Type != "file" {
+		t.Fatalf("svg part type = %q, want file", gotParts[0].Type)
+	}
+}
+
+func TestNormalizeMessageMediaType_SVG(t *testing.T) {
+	tests := []struct {
+		name        string
+		typeHint    string
+		filename    string
+		contentType string
+		want        string
+	}{
+		{"svg content type", "", "diagram.svg", "image/svg+xml", "file"},
+		{"svg extension with unknown content type", "", "diagram.svg", "", "file"},
+		{"svg extension with octet-stream", "", "diagram.svg", "application/octet-stream", "file"},
+		{"svg content type without extension", "", "diagram", "image/svg+xml", "file"},
+		{"raster png stays image", "", "photo.png", "image/png", "image"},
+		{"explicit hint wins over detection", "image", "photo.png", "image/png", "image"},
+		{"explicit file hint on svg", "file", "diagram.svg", "image/svg+xml", "file"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeMessageMediaType(tt.typeHint, tt.filename, tt.contentType)
+			if got != tt.want {
+				t.Fatalf("normalizeMessageMediaType(%q, %q, %q) = %q, want %q",
+					tt.typeHint, tt.filename, tt.contentType, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessageTool_Execute_DirectoryPath(t *testing.T) {
+	tool := NewMessageTool()
+	dir := t.TempDir()
+	tool.ConfigureLocalMedia(dir, true, 1024*1024, []*regexp.Regexp{})
+	tool.SetMediaStore(media.NewFileMediaStore())
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		t.Fatal("send callback should not run for a directory path")
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{"file_path": "."})
+	if !result.IsError {
+		t.Fatal("expected error for directory path")
+	}
+	if !strings.Contains(result.ForLLM, "expected a file") {
+		t.Fatalf("expected 'expected a file' in error, got %q", result.ForLLM)
+	}
+}
+
+func TestMessageTool_Execute_FileTooLarge(t *testing.T) {
+	tool := NewMessageTool()
+	dir := t.TempDir()
+	bigPath := filepath.Join(dir, "big.bin")
+	if err := os.WriteFile(bigPath, make([]byte, 1024), 0o644); err != nil {
+		t.Fatalf("write big file: %v", err)
+	}
+	tool.ConfigureLocalMedia(dir, true, 512, []*regexp.Regexp{})
+	tool.SetMediaStore(media.NewFileMediaStore())
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		t.Fatal("send callback should not run for an oversized file")
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{"file_path": "big.bin"})
+	if !result.IsError {
+		t.Fatal("expected error for oversized file")
+	}
+	if !strings.Contains(result.ForLLM, "file too large") {
+		t.Fatalf("expected 'file too large' in error, got %q", result.ForLLM)
+	}
+}
+
+func TestMessageTool_ConfigureLocalMedia_DefaultMaxSize(t *testing.T) {
+	tool := NewMessageTool()
+	tool.ConfigureLocalMedia(t.TempDir(), true, 0, nil)
+	if tool.maxFileSize != config.DefaultMaxMediaSize {
+		t.Fatalf("maxFileSize = %d, want default %d", tool.maxFileSize, config.DefaultMaxMediaSize)
+	}
+}
+
+func TestMessageTool_Execute_MediaStoreNotConfigured(t *testing.T) {
+	tool := NewMessageTool()
+	tool.ConfigureLocalMedia(t.TempDir(), true, 1024*1024, []*regexp.Regexp{})
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		t.Fatal("send callback should not run without a media store")
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{"file_path": "anything.txt"})
+	if !result.IsError {
+		t.Fatal("expected error when media store is missing")
+	}
+	if !strings.Contains(result.ForLLM, "media store not configured") {
+		t.Fatalf("expected 'media store not configured' in error, got %q", result.ForLLM)
+	}
+}
+
+func TestMessageTool_Execute_MediaDeliveryNotConfigured(t *testing.T) {
+	tool := NewMessageTool()
+	// Media support enabled but no workspace: delivery is incomplete.
+	tool.ConfigureLocalMedia("", true, 1024*1024, []*regexp.Regexp{})
+	tool.SetMediaStore(media.NewFileMediaStore())
+	tool.SetSendCallback(func(
+		ctx context.Context,
+		channel, chatID, content, replyToMessageID string,
+		mediaParts []bus.MediaPart,
+	) error {
+		t.Fatal("send callback should not run without a workspace")
+		return nil
+	})
+
+	ctx := WithToolContext(context.Background(), "telegram", "-1001")
+	result := tool.Execute(ctx, map[string]any{"file_path": "anything.txt"})
+	if !result.IsError {
+		t.Fatal("expected error when workspace is not configured")
+	}
+	if !strings.Contains(result.ForLLM, "not configured") {
+		t.Fatalf("expected 'not configured' in error, got %q", result.ForLLM)
+	}
+}
+
+func TestDetectMessageMediaType_MagicBytes(t *testing.T) {
+	dir := t.TempDir()
+	pngPath := filepath.Join(dir, "photo")
+	if err := os.WriteFile(pngPath, []byte("\x89PNG\r\n\x1a\n"), 0o644); err != nil {
+		t.Fatalf("write png: %v", err)
+	}
+	if got := detectMessageMediaType(pngPath); got != "image/png" {
+		t.Fatalf("detectMessageMediaType = %q, want image/png", got)
+	}
+}
+
+func TestDetectMessageMediaType_FallbackToExtension(t *testing.T) {
+	dir := t.TempDir()
+	svgPath := filepath.Join(dir, "diagram.svg")
+	if err := os.WriteFile(svgPath, []byte(`<svg></svg>`), 0o644); err != nil {
+		t.Fatalf("write svg: %v", err)
+	}
+	if got := detectMessageMediaType(svgPath); got != "image/svg+xml" {
+		t.Fatalf("detectMessageMediaType = %q, want image/svg+xml", got)
+	}
+}
+
+func TestDetectMessageMediaType_UnknownFallsToOctetStream(t *testing.T) {
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "blob")
+	if err := os.WriteFile(blobPath, []byte{0x00, 0x01, 0x02, 0x03}, 0o644); err != nil {
+		t.Fatalf("write blob: %v", err)
+	}
+	if got := detectMessageMediaType(blobPath); got != "application/octet-stream" {
+		t.Fatalf("detectMessageMediaType = %q, want application/octet-stream", got)
 	}
 }
