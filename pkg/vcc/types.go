@@ -14,14 +14,14 @@ const (
 // NormalizedBlock is the compiler's intermediate representation of a single
 // conversation block produced by normalization (algo spec §2.1).
 type NormalizedBlock struct {
-	Kind        BlockKind              `json:"kind"`
-	Text        string                 `json:"text,omitempty"`
-	SourceIndex *int                   `json:"sourceIndex,omitempty"`
-	Name        string                 `json:"name,omitempty"`
-	Args        map[string]interface{} `json:"args,omitempty"`
-	Command     string                 `json:"command,omitempty"`
-	Output      string                 `json:"output,omitempty"`
-	ExitCode    *int                   `json:"exitCode,omitempty"`
+	Kind        BlockKind      `json:"kind"`
+	Text        string         `json:"text,omitempty"`
+	SourceIndex *int           `json:"sourceIndex,omitempty"`
+	Name        string         `json:"name,omitempty"`
+	Args        map[string]any `json:"args,omitempty"`
+	Command     string         `json:"command,omitempty"`
+	Output      string         `json:"output,omitempty"`
+	ExitCode    *int           `json:"exitCode,omitempty"`
 }
 
 // SectionData is the normalized intermediate representation rendered by the

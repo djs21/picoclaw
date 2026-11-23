@@ -19,9 +19,9 @@ func TestTextOfEmptyString(t *testing.T) {
 }
 
 func TestTextOfArray(t *testing.T) {
-	parts := []interface{}{
-		map[string]interface{}{"text": "hello"},
-		map[string]interface{}{"text": "world"},
+	parts := []any{
+		map[string]any{"text": "hello"},
+		map[string]any{"text": "world"},
 	}
 	got := textOf(parts)
 	if got != "hello\nworld" {
@@ -30,10 +30,10 @@ func TestTextOfArray(t *testing.T) {
 }
 
 func TestTextOfArraySkipsNonTextParts(t *testing.T) {
-	parts := []interface{}{
-		map[string]interface{}{"text": "hello"},
-		map[string]interface{}{"type": "tool_call"},
-		map[string]interface{}{"text": "world"},
+	parts := []any{
+		map[string]any{"text": "hello"},
+		map[string]any{"type": "tool_call"},
+		map[string]any{"text": "world"},
 	}
 	got := textOf(parts)
 	if got != "hello\nworld" {

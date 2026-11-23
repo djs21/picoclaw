@@ -7,14 +7,14 @@ import (
 
 // textOf extracts plain text from message content, which may be a string or an
 // array of parts (algo spec §3.1, src/core/content.ts:49).
-func textOf(content interface{}) string {
+func textOf(content any) string {
 	switch c := content.(type) {
 	case string:
 		return c
-	case []interface{}:
+	case []any:
 		var parts []string
 		for _, p := range c {
-			if m, ok := p.(map[string]interface{}); ok {
+			if m, ok := p.(map[string]any); ok {
 				if t, ok := m["text"].(string); ok {
 					parts = append(parts, t)
 				}

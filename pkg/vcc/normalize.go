@@ -5,7 +5,7 @@ import "strings"
 // normalize converts raw messages into NormalizedBlock[] (algo spec §3.1,
 // src/core/normalize.ts:70). sourceIndices (optional, variadic) supplies the
 // session-global index per message position; omitted or missing → nil SourceIndex.
-func normalize(messages []map[string]interface{}, sourceIndices ...int) []NormalizedBlock {
+func normalize(messages []map[string]any, sourceIndices ...int) []NormalizedBlock {
 	var blocks []NormalizedBlock
 	for i, msg := range messages {
 		role, _ := msg["role"].(string)
@@ -21,7 +21,7 @@ func normalize(messages []map[string]interface{}, sourceIndices ...int) []Normal
 
 // normalizeOne converts a single message into zero or more NormalizedBlock
 // (algo spec §3.1, src/core/normalize.ts:6).
-func normalizeOne(role string, msg map[string]interface{}, sourceIndex *int) []NormalizedBlock {
+func normalizeOne(role string, msg map[string]any, sourceIndex *int) []NormalizedBlock {
 	switch role {
 	case "user":
 		return normalizeOneUser(msg, sourceIndex)
@@ -36,21 +36,21 @@ func normalizeOne(role string, msg map[string]interface{}, sourceIndex *int) []N
 	}
 }
 
-func normalizeOneUser(msg map[string]interface{}, sourceIndex *int) []NormalizedBlock {
+func normalizeOneUser(msg map[string]any, sourceIndex *int) []NormalizedBlock {
 	content := msg["content"]
 
 	var blocks []NormalizedBlock
 	var imageBlocks []NormalizedBlock
 	var textParts []string
 
-	if parts, ok := content.([]interface{}); ok {
+	if parts, ok := content.([]any); ok {
 		for _, p := range parts {
-			m, ok := p.(map[string]interface{})
+			m, ok := p.(map[string]any)
 			if !ok {
 				continue
 			}
 			// Image part → collect [image: mimeType] block
-			if img, ok := m["image"].(map[string]interface{}); ok {
+			if img, ok := m["image"].(map[string]any); ok {
 				if mime, ok := img["mimeType"].(string); ok {
 					imageBlocks = append(imageBlocks, NormalizedBlock{
 						Kind:        BlockKindUser,
@@ -109,7 +109,7 @@ func normalizeOneUser(msg map[string]interface{}, sourceIndex *int) []Normalized
 	return blocks
 }
 
-func normalizeOneAssistant(msg map[string]interface{}, sourceIndex *int) []NormalizedBlock {
+func normalizeOneAssistant(msg map[string]any, sourceIndex *int) []NormalizedBlock {
 	content := msg["content"]
 
 	switch c := content.(type) {
@@ -122,10 +122,10 @@ func normalizeOneAssistant(msg map[string]interface{}, sourceIndex *int) []Norma
 			Text:        sanitize(c),
 			SourceIndex: sourceIndex,
 		}}
-	case []interface{}:
+	case []any:
 		var blocks []NormalizedBlock
 		for _, p := range c {
-			m, ok := p.(map[string]interface{})
+			m, ok := p.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -141,7 +141,7 @@ func normalizeOneAssistant(msg map[string]interface{}, sourceIndex *int) []Norma
 				if name == "" {
 					continue
 				}
-				args, _ := m["args"].(map[string]interface{})
+				args, _ := m["args"].(map[string]any)
 				blocks = append(blocks, NormalizedBlock{
 					Kind:        BlockKindToolCall,
 					Name:        name,
@@ -156,7 +156,7 @@ func normalizeOneAssistant(msg map[string]interface{}, sourceIndex *int) []Norma
 	}
 }
 
-func normalizeOneBash(msg map[string]interface{}, sourceIndex *int) []NormalizedBlock {
+func normalizeOneBash(msg map[string]any, sourceIndex *int) []NormalizedBlock {
 	command, _ := msg["command"].(string)
 	output, _ := msg["output"].(string)
 	var exitCode *int
@@ -177,7 +177,7 @@ func normalizeOneBash(msg map[string]interface{}, sourceIndex *int) []Normalized
 	}}
 }
 
-func normalizeOneToolResult(msg map[string]interface{}, sourceIndex *int) []NormalizedBlock {
+func normalizeOneToolResult(msg map[string]any, sourceIndex *int) []NormalizedBlock {
 	name, _ := msg["toolName"].(string)
 	text := sanitize(textOf(msg["content"]))
 	return []NormalizedBlock{{

@@ -5,7 +5,7 @@ package vcc
 type CompileInput struct {
 	// Messages are raw session messages in the shape produced by the JSONL
 	// backend before conversion ({role, content, ...}).
-	Messages []map[string]interface{}
+	Messages []map[string]any
 
 	// PreviousSummary is the prior VCC summary, if any. It is stripped of a
 	// trailing RECALL_NOTE before merge to avoid restacking.

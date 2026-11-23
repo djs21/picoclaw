@@ -7,7 +7,7 @@ import (
 
 func TestCompileFirstCompaction(t *testing.T) {
 	input := CompileInput{
-		Messages: []map[string]interface{}{
+		Messages: []map[string]any{
 			{"role": "user", "content": "Fix the login bug"},
 			{"role": "assistant", "content": "I will fix it now"},
 		},
@@ -30,7 +30,7 @@ func TestCompileFirstCompaction(t *testing.T) {
 func TestCompileMergesPrevious(t *testing.T) {
 	input := CompileInput{
 		PreviousSummary: "[Session Goal]\n- fix landing page\n\n---\n\n" + RECALL_NOTE,
-		Messages: []map[string]interface{}{
+		Messages: []map[string]any{
 			{"role": "user", "content": "Fix the login bug"},
 			{"role": "assistant", "content": "I will fix it now"},
 		},
@@ -51,7 +51,7 @@ func TestCompileMergesPrevious(t *testing.T) {
 }
 
 func TestCompileSecondCompactionKeepsBriefAndSingleNote(t *testing.T) {
-	first := Compile(CompileInput{Messages: []map[string]interface{}{
+	first := Compile(CompileInput{Messages: []map[string]any{
 		{"role": "user", "content": "Scout the config system"},
 		{"role": "assistant", "content": "The config lives in pkg/config"},
 	}})
@@ -60,7 +60,7 @@ func TestCompileSecondCompactionKeepsBriefAndSingleNote(t *testing.T) {
 	}
 	second := Compile(CompileInput{
 		PreviousSummary: first,
-		Messages: []map[string]interface{}{
+		Messages: []map[string]any{
 			{"role": "user", "content": "Update the configuration docs"},
 			{"role": "assistant", "content": "Docs updated now"},
 		},

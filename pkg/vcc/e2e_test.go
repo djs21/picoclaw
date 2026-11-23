@@ -6,7 +6,7 @@ import (
 )
 
 func TestE2ECompileSmoke(t *testing.T) {
-	messages := []map[string]interface{}{
+	messages := []map[string]any{
 		{"role": "user", "content": "Implement the VCC context manager"},
 		{"role": "assistant", "content": "I will start with the types package"},
 		{"role": "user", "content": "Also update the configuration documentation"},

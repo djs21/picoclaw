@@ -38,14 +38,14 @@ func EstimateTokensFromChars(chars int) int {
 // estimateMessageContentChars estimates the character count of message
 // content, which may be a plain string or an array of parts. Each image part
 // counts as imageChars (4800) characters (algo spec §3.7).
-func estimateMessageContentChars(content interface{}) int {
+func estimateMessageContentChars(content any) int {
 	switch c := content.(type) {
 	case string:
 		return len(c)
-	case []interface{}:
+	case []any:
 		total := 0
 		for _, p := range c {
-			m, ok := p.(map[string]interface{})
+			m, ok := p.(map[string]any)
 			if !ok {
 				continue
 			}

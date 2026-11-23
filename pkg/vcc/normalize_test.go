@@ -5,7 +5,7 @@ import (
 )
 
 func TestNormalizeUserMessage(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "user", "content": "hello"},
 	}
 	blocks := normalize(msgs)
@@ -21,7 +21,7 @@ func TestNormalizeUserMessage(t *testing.T) {
 }
 
 func TestNormalizeUserMessageWithSourceIndex(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "user", "content": "hello"},
 	}
 	blocks := normalize(msgs, 42)
@@ -34,7 +34,7 @@ func TestNormalizeUserMessageWithSourceIndex(t *testing.T) {
 }
 
 func TestNormalizeNoSourceIndex(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "user", "content": "hello"},
 	}
 	blocks := normalize(msgs)
@@ -47,7 +47,7 @@ func TestNormalizeNoSourceIndex(t *testing.T) {
 }
 
 func TestNormalizeAssistantString(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "assistant", "content": "response"},
 	}
 	blocks := normalize(msgs)
@@ -63,10 +63,10 @@ func TestNormalizeAssistantString(t *testing.T) {
 }
 
 func TestNormalizeAssistantArray(t *testing.T) {
-	msgs := []map[string]interface{}{
-		{"role": "assistant", "content": []interface{}{
-			map[string]interface{}{"text": "part1"},
-			map[string]interface{}{"text": "part2"},
+	msgs := []map[string]any{
+		{"role": "assistant", "content": []any{
+			map[string]any{"text": "part1"},
+			map[string]any{"text": "part2"},
 		}},
 	}
 	blocks := normalize(msgs)
@@ -82,7 +82,7 @@ func TestNormalizeAssistantArray(t *testing.T) {
 }
 
 func TestNormalizeBashExecution(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "bashExecution", "command": "ls", "output": "file1\nfile2", "exitCode": 0},
 	}
 	blocks := normalize(msgs)
@@ -104,7 +104,7 @@ func TestNormalizeBashExecution(t *testing.T) {
 }
 
 func TestNormalizeToolResult(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "toolResult", "toolName": "Read", "content": "file content"},
 	}
 	blocks := normalize(msgs)
@@ -123,7 +123,7 @@ func TestNormalizeToolResult(t *testing.T) {
 }
 
 func TestNormalizeUnknownRole(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "system", "content": "ignored"},
 	}
 	blocks := normalize(msgs)
@@ -133,7 +133,7 @@ func TestNormalizeUnknownRole(t *testing.T) {
 }
 
 func TestNormalizeEmptyTextUserFallback(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "user", "content": ""},
 	}
 	blocks := normalize(msgs)
@@ -149,10 +149,10 @@ func TestNormalizeEmptyTextUserFallback(t *testing.T) {
 }
 
 func TestNormalizeUserImageBlock(t *testing.T) {
-	msgs := []map[string]interface{}{
-		{"role": "user", "content": []interface{}{
-			map[string]interface{}{"text": "see image"},
-			map[string]interface{}{"image": map[string]interface{}{"mimeType": "image/png"}},
+	msgs := []map[string]any{
+		{"role": "user", "content": []any{
+			map[string]any{"text": "see image"},
+			map[string]any{"image": map[string]any{"mimeType": "image/png"}},
 		}},
 	}
 	blocks := normalize(msgs)
@@ -174,7 +174,7 @@ func TestNormalizeUserImageBlock(t *testing.T) {
 }
 
 func TestNormalizeMultipleMessages(t *testing.T) {
-	msgs := []map[string]interface{}{
+	msgs := []map[string]any{
 		{"role": "user", "content": "first"},
 		{"role": "assistant", "content": "second"},
 		{"role": "user", "content": "third"},

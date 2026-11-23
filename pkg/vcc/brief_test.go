@@ -14,7 +14,7 @@ func TestBRIEF_MAX_LINES(t *testing.T) {
 }
 
 func TestToolOneLinerRead(t *testing.T) {
-	got := toolOneLiner("Read", map[string]interface{}{"file_path": "/tmp/foo.txt"})
+	got := toolOneLiner("Read", map[string]any{"file_path": "/tmp/foo.txt"})
 	want := `* Read "/tmp/foo.txt"`
 	if got != want {
 		t.Errorf("toolOneLiner(Read) = %q, want %q", got, want)
@@ -22,7 +22,7 @@ func TestToolOneLinerRead(t *testing.T) {
 }
 
 func TestToolOneLinerWrite(t *testing.T) {
-	got := toolOneLiner("Write", map[string]interface{}{"file_path": "/tmp/bar.txt"})
+	got := toolOneLiner("Write", map[string]any{"file_path": "/tmp/bar.txt"})
 	want := `* Write "/tmp/bar.txt"`
 	if got != want {
 		t.Errorf("toolOneLiner(Write) = %q, want %q", got, want)
@@ -30,7 +30,7 @@ func TestToolOneLinerWrite(t *testing.T) {
 }
 
 func TestToolOneLinerBash(t *testing.T) {
-	got := toolOneLiner("bash", map[string]interface{}{"command": "echo hello"})
+	got := toolOneLiner("bash", map[string]any{"command": "echo hello"})
 	want := `* bash "echo hello"`
 	if got != want {
 		t.Errorf("toolOneLiner(bash) = %q, want %q", got, want)
@@ -38,7 +38,7 @@ func TestToolOneLinerBash(t *testing.T) {
 }
 
 func TestToolOneLinerGrepQuery(t *testing.T) {
-	got := toolOneLiner("Grep", map[string]interface{}{"query": "error pattern"})
+	got := toolOneLiner("Grep", map[string]any{"query": "error pattern"})
 	want := `* Grep "error pattern"`
 	if got != want {
 		t.Errorf("toolOneLiner(Grep) = %q, want %q", got, want)
@@ -46,7 +46,7 @@ func TestToolOneLinerGrepQuery(t *testing.T) {
 }
 
 func TestToolOneLinerUnknown(t *testing.T) {
-	got := toolOneLiner("UnknownTool", map[string]interface{}{})
+	got := toolOneLiner("UnknownTool", map[string]any{})
 	want := `* UnknownTool`
 	if got != want {
 		t.Errorf("toolOneLiner(UnknownTool) = %q, want %q", got, want)
@@ -123,7 +123,7 @@ func TestBuildBriefSectionsBash(t *testing.T) {
 
 func TestBuildBriefSectionsToolResultOmitted(t *testing.T) {
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/tmp/a.txt"}},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/tmp/a.txt"}},
 		{Kind: BlockKindToolResult, Output: "file contents here"},
 	}
 	sections := buildBriefSections(blocks)
@@ -154,8 +154,8 @@ func TestBuildBriefSectionsIdenticalToolCollapse(t *testing.T) {
 	s2 := ptrInt(2)
 	blocks := []NormalizedBlock{
 		{Kind: BlockKindAssistant, Text: "reading"},
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/tmp/a.txt"}, SourceIndex: s1},
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/tmp/a.txt"}, SourceIndex: s2},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/tmp/a.txt"}, SourceIndex: s1},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/tmp/a.txt"}, SourceIndex: s2},
 	}
 	sections := buildBriefSections(blocks)
 	if len(sections) != 1 {
@@ -176,7 +176,7 @@ func TestBuildBriefSectionsToolCap8(t *testing.T) {
 	for i := 0; i < 9; i++ {
 		blocks = append(blocks, NormalizedBlock{
 			Kind: BlockKindToolCall, Name: "Read",
-			Args: map[string]interface{}{"file_path": "/tmp/file.txt"},
+			Args: map[string]any{"file_path": "/tmp/file.txt"},
 		})
 	}
 	sections := buildBriefSections(blocks)

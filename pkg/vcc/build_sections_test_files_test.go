@@ -10,9 +10,9 @@ import (
 func TestFormatFileActivityModifiedWinsOverCreated(t *testing.T) {
 	// Use tool calls in blocks since FileOps is write-only (cannot retrieve paths).
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]interface{}{"file_path": "/src/a.txt"}},
-		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]interface{}{"file_path": "/src/a.txt"}},
-		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]interface{}{"file_path": "/src/b.txt"}},
+		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]any{"file_path": "/src/a.txt"}},
+		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]any{"file_path": "/src/a.txt"}},
+		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]any{"file_path": "/src/b.txt"}},
 	}
 	got := formatFileActivity(blocks, nil)
 
@@ -34,13 +34,13 @@ func TestFormatFileActivityCapsAt10PerCategory(t *testing.T) {
 	for i := 0; i < 15; i++ {
 		blocks = append(blocks, NormalizedBlock{
 			Kind: BlockKindToolCall, Name: "Edit",
-			Args: map[string]interface{}{"file_path": "/src/proj" + string(rune('a'+i)) + "/file.txt"},
+			Args: map[string]any{"file_path": "/src/proj" + string(rune('a'+i)) + "/file.txt"},
 		})
 	}
 	for i := 0; i < 12; i++ {
 		blocks = append(blocks, NormalizedBlock{
 			Kind: BlockKindToolCall, Name: "Write",
-			Args: map[string]interface{}{"file_path": "/src/proj" + string(rune('a'+i)) + "/new.txt"},
+			Args: map[string]any{"file_path": "/src/proj" + string(rune('a'+i)) + "/new.txt"},
 		})
 	}
 
@@ -78,7 +78,7 @@ func TestFormatFileActivityCapsAt10PerCategory(t *testing.T) {
 
 func TestFormatFileActivityReadCategory(t *testing.T) {
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/src/readme.txt"}},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/src/readme.txt"}},
 	}
 	got := formatFileActivity(blocks, nil)
 
@@ -90,9 +90,9 @@ func TestFormatFileActivityReadCategory(t *testing.T) {
 
 func TestExtractFilesFromToolCalls(t *testing.T) {
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/tmp/a.txt"}},
-		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]interface{}{"file_path": "/tmp/b.txt"}},
-		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]interface{}{"file_path": "/tmp/c.txt"}},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/tmp/a.txt"}},
+		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]any{"file_path": "/tmp/b.txt"}},
+		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]any{"file_path": "/tmp/c.txt"}},
 	}
 	got := extractFiles(blocks, nil)
 
@@ -119,7 +119,7 @@ func TestExtractCommitsEmpty(t *testing.T) {
 
 func TestExtractCommitsGitCommit(t *testing.T) {
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "bash", Command: `git commit -m "initial commit"`, Args: map[string]interface{}{"command": `git commit -m "initial commit"`}},
+		{Kind: BlockKindToolCall, Name: "bash", Command: `git commit -m "initial commit"`, Args: map[string]any{"command": `git commit -m "initial commit"`}},
 		{Kind: BlockKindToolResult, Name: "bash", Text: "[main abc1234] initial commit"},
 	}
 	got := extractCommits(blocks)
@@ -231,7 +231,7 @@ func TestBuildSectionsAllCaps(t *testing.T) {
 	for i := 0; i < 15; i++ {
 		blocks = append(blocks, NormalizedBlock{
 			Kind: BlockKindToolCall, Name: "Edit",
-			Args: map[string]interface{}{"file_path": "/src/file" + string(rune('a'+i)) + ".go"},
+			Args: map[string]any{"file_path": "/src/file" + string(rune('a'+i)) + ".go"},
 		})
 	}
 	// 12 commits (should cap at 8)
@@ -239,7 +239,7 @@ func TestBuildSectionsAllCaps(t *testing.T) {
 		blocks = append(blocks, NormalizedBlock{
 			Kind: BlockKindToolCall, Name: "bash",
 			Command: `git commit -m "msg ` + string(rune('a'+i)) + `"`,
-			Args:    map[string]interface{}{"command": `git commit -m "msg ` + string(rune('a'+i)) + `"`},
+			Args:    map[string]any{"command": `git commit -m "msg ` + string(rune('a'+i)) + `"`},
 		})
 		if i < 12 {
 			blocks = append(blocks, NormalizedBlock{
@@ -283,9 +283,9 @@ func TestBuildSectionsModifiedWinsOverCreated(t *testing.T) {
 	// Note: "Write" tool is both a write AND create tool, so Written files
 	// appear in Modified (which wins over Created per the algorithm).
 	blocks := []NormalizedBlock{
-		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]interface{}{"file_path": "/src/shared.go"}},
-		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]interface{}{"file_path": "/src/shared.go"}},
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/src/readonly.go"}},
+		{Kind: BlockKindToolCall, Name: "Edit", Args: map[string]any{"file_path": "/src/shared.go"}},
+		{Kind: BlockKindToolCall, Name: "Write", Args: map[string]any{"file_path": "/src/shared.go"}},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/src/readonly.go"}},
 	}
 	input := BuildSectionsInput{Blocks: blocks}
 	got := buildSections(input)

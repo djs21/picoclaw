@@ -71,7 +71,7 @@ func TestExtractGoalsFirstBlockGetsSix(t *testing.T) {
 func TestExtractGoalsNonUserBlocksIgnored(t *testing.T) {
 	blocks := []NormalizedBlock{
 		{Kind: BlockKindAssistant, Text: "implement something"},
-		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]interface{}{"file_path": "/tmp/a.txt"}},
+		{Kind: BlockKindToolCall, Name: "Read", Args: map[string]any{"file_path": "/tmp/a.txt"}},
 		{Kind: BlockKindUser, Text: "real goal here"},
 	}
 	got := extractGoals(blocks)

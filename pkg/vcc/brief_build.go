@@ -19,7 +19,7 @@ var toolSummaryFields = map[string]string{
 }
 
 // extractPath returns the first path-like argument value, or "" if none.
-func extractPath(args map[string]interface{}) string {
+func extractPath(args map[string]any) string {
 	for _, key := range []string{"path", "file_path", "filePath", "file"} {
 		if v, ok := args[key]; ok {
 			if s, ok := v.(string); ok {
@@ -31,7 +31,7 @@ func extractPath(args map[string]interface{}) string {
 }
 
 // toolOneLiner renders a single tool call as a compact summary line.
-func toolOneLiner(name string, args map[string]interface{}) string {
+func toolOneLiner(name string, args map[string]any) string {
 	field, ok := toolSummaryFields[name]
 	if ok {
 		if v, ok := args[field]; ok {

@@ -58,8 +58,8 @@ func TestEstimateMessageContentCharsEmpty(t *testing.T) {
 }
 
 func TestEstimateMessageContentCharsImage(t *testing.T) {
-	parts := []interface{}{
-		map[string]interface{}{"image": true},
+	parts := []any{
+		map[string]any{"image": true},
 	}
 	got := estimateMessageContentChars(parts)
 	if got != 4800 {
@@ -68,10 +68,10 @@ func TestEstimateMessageContentCharsImage(t *testing.T) {
 }
 
 func TestEstimateMessageContentCharsMixed(t *testing.T) {
-	parts := []interface{}{
-		map[string]interface{}{"text": "hi"},  // 2
-		map[string]interface{}{"image": true}, // 4800
-		map[string]interface{}{"text": "bye"}, // 3
+	parts := []any{
+		map[string]any{"text": "hi"},  // 2
+		map[string]any{"image": true}, // 4800
+		map[string]any{"text": "bye"}, // 3
 	}
 	got := estimateMessageContentChars(parts)
 	if got != 4805 {

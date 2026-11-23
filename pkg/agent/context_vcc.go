@@ -141,12 +141,12 @@ func init() {
 	}
 }
 
-func providerMessagesToMaps(msgs []providers.Message) ([]map[string]interface{}, error) {
+func providerMessagesToMaps(msgs []providers.Message) ([]map[string]any, error) {
 	raw, err := json.Marshal(msgs)
 	if err != nil {
 		return nil, fmt.Errorf("vcc compact: marshal messages: %w", err)
 	}
-	var out []map[string]interface{}
+	var out []map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("vcc compact: unmarshal messages: %w", err)
 	}
