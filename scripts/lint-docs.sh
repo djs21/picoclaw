@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Enforces the documentation layout rules for this repository.
+#
+# Documentation is English-only. Localized variants of docs are not kept:
+# there is one canonical English file per document.
+
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -19,195 +24,105 @@ error() {
 	failures=1
 }
 
+# Locale codes that must never be used to name or bucket documentation.
+# Keep this list broad enough to catch forgotten translations. Do not replace it
+# with a generic two-letter match: channel directories such as docs/channels/qq/
+# and docs/channels/vk/ are legitimate and would be false positives.
+locale_codes='en|it|zh|fr|ja|ms|pt|pt-br|vi|es|de|ru|ko|ar|id|nl|pl|tr|th|uk|cs|sv|da|fi|no|he|hi|bn'
+
 lowercase() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-suggest_noncanonical_translation_name() {
-	local path="$1"
-	local dir
+# Localized documentation names look like <stem>.<locale>.md or
+# <stem>_<locale>.md, in any letter case.
+is_localized_doc() {
 	local base
-	local stem
-	local locale
+
+	base="$(lowercase "$(basename "$1")")"
+
+	[[ "$base" =~ \.(${locale_codes})\.md$ ]] && return 0
+	[[ "$base" =~ _(${locale_codes})\.md$ ]] && return 0
+
+	return 1
+}
+
+# The English counterpart of a localized document: same directory, locale
+# marker stripped. Matching is case-insensitive; the suggestion keeps the
+# original filename casing.
+english_sibling() {
+	local path="$1"
+	local dir base lower stem marker
 
 	dir="$(dirname "$path")"
 	base="$(basename "$path")"
+	lower="$(lowercase "$base")"
+	stem="${base%.md}"
 
-	if [[ "$base" =~ ^(.+)_([A-Za-z]{2}(-[A-Za-z]{2})?)\.md$ ]]; then
-		stem="${BASH_REMATCH[1]}"
-		locale="$(lowercase "${BASH_REMATCH[2]}")"
-		printf '%s/%s.%s.md' "$dir" "$stem" "$locale"
-		return
+	if [[ "$lower" =~ ^(.+)\.(${locale_codes})\.md$ ]]; then
+		marker="${BASH_REMATCH[2]}"
+		stem="${stem:0:$((${#stem} - ${#marker} - 1))}"
+	elif [[ "$lower" =~ ^(.+)_(${locale_codes})\.md$ ]]; then
+		marker="${BASH_REMATCH[2]}"
+		stem="${stem:0:$((${#stem} - ${#marker} - 1))}"
 	fi
 
-	if [[ "$base" =~ ^(.+)\.([A-Za-z]{2}(-[A-Za-z]{2})?)\.md$ ]]; then
-		stem="${BASH_REMATCH[1]}"
-		locale="$(lowercase "${BASH_REMATCH[2]}")"
-		printf '%s/%s.%s.md' "$dir" "$stem" "$locale"
-		return
-	fi
-
-	printf 'rename it to use a lowercase .<locale>.md suffix beside the English source'
+	printf '%s/%s.md' "$dir" "$stem"
 }
 
-suggest_docs_language_bucket_target() {
+# Language buckets such as docs/zh/, docs/guides/zh/, or
+# docs/channels/telegram/zh/ are not allowed anywhere under docs/.
+is_locale_directory() {
 	local path="$1"
-	local locale
-	local file
-	local name
-	local -a matches
+	local segment
+	local -a segments
 
-	if [[ "$path" =~ ^docs/([A-Za-z]{2}(-[A-Za-z]{2})?)/.+\.md$ ]]; then
-		locale="$(lowercase "${BASH_REMATCH[1]}")"
-		file="$(basename "$path")"
-		name="${file%.md}"
-		mapfile -t matches < <(find docs/project docs/guides docs/reference docs/operations docs/security docs/architecture docs/channels docs/design docs/migration -type f -name "${name}.md" 2>/dev/null | sort)
-		if [[ "${#matches[@]}" -eq 1 ]]; then
-			printf '%s' "${matches[0]%.md}.${locale}.md"
-			return
-		fi
-	fi
+	[[ "$path" == docs/* ]] || return 1
 
-	printf 'move it to a typed docs directory and rename it to <name>.<locale>.md beside the English source'
-}
-
-suggest_nested_locale_bucket_target() {
-	local path="$1"
-	local prefix
-	local locale
-	local rest
-
-	if [[ "$path" =~ ^(docs/(project|guides|reference|operations|security|architecture|design|migration))/([A-Za-z]{2}(-[A-Za-z]{2})?)/(.*)\.md$ ]]; then
-		prefix="${BASH_REMATCH[1]}"
-		locale="$(lowercase "${BASH_REMATCH[3]}")"
-		rest="${BASH_REMATCH[5]}"
-		printf '%s/%s.%s.md' "$prefix" "$rest" "$locale"
-		return
-	fi
-
-	if [[ "$path" =~ ^(docs/channels/[^/]+)/([A-Za-z]{2}(-[A-Za-z]{2})?)/(.*)\.md$ ]]; then
-		prefix="${BASH_REMATCH[1]}"
-		locale="$(lowercase "${BASH_REMATCH[2]}")"
-		rest="${BASH_REMATCH[4]}"
-		printf '%s/%s.%s.md' "$prefix" "$rest" "$locale"
-		return
-	fi
-
-	printf 'move the file beside its English source and rename it to <name>.<locale>.md'
-}
-
-is_noncanonical_translation_name() {
-	local path="$1"
-	local base
-
-	base="$(basename "$path")"
-
-	[[ "$base" =~ ^.+_[A-Za-z]{2}(-[A-Za-z]{2})?\.md$ ]] && return 0
-	[[ "$base" =~ ^.+\.[A-Z]{2}(-[A-Z]{2})?\.md$ ]] && return 0
-	[[ "$base" =~ ^.+\.[a-z]{2}-[A-Z]{2}\.md$ ]] && return 0
-	[[ "$base" =~ ^.+\.[A-Z]{2}-[a-z]{2}\.md$ ]] && return 0
+	IFS='/' read -r -a segments <<<"$(lowercase "${path#docs/}")"
+	for segment in "${segments[@]}"; do
+		[[ "|${locale_codes}|" == *"|${segment}|"* ]] && return 0
+	done
 
 	return 1
-}
-
-is_noncanonical_locale_bucket() {
-	local path="$1"
-
-	[[ "$path" =~ ^docs/(project|guides|reference|operations|security|architecture|design|migration)/[A-Za-z]{2}(-[A-Za-z]{2})?/ ]] && return 0
-	[[ "$path" =~ ^docs/channels/[^/]+/[A-Za-z]{2}(-[A-Za-z]{2})?/ ]] && return 0
-	return 1
-}
-
-is_root_docs_language_bucket() {
-	local path="$1"
-	[[ "$path" =~ ^docs/[A-Za-z]{2}(-[A-Za-z]{2})?/ ]]
-}
-
-is_translation_file() {
-	local path="$1"
-	[[ "$path" =~ ^(.+)\.([a-z]{2})(-[a-z]{2})?\.md$ ]]
-}
-
-translation_base() {
-	local path="$1"
-	local locale="$2"
-
-	if [[ "$path" == docs/project/* ]]; then
-		local rel="${path#docs/project/}"
-		echo "${rel%.$locale.md}.md"
-		return
-	fi
-
-	echo "${path%.$locale.md}.md"
 }
 
 while IFS= read -r path; do
 	[[ -f "$path" ]] || continue
 
-	case "$path" in
-		README.*.md)
-			error \
-				"$path" \
-				"translated project entry docs must live under docs/project/" \
-				"move it to docs/project/$(basename "$path")"
-			;;
-		CONTRIBUTING.*.md)
-			error \
-				"$path" \
-				"translated project entry docs must live under docs/project/" \
-				"move it to docs/project/$(basename "$path")"
-			;;
-	esac
+	# Localized documentation is rejected anywhere in the repository, not only
+	# under docs/: one canonical English file per document.
+	if is_localized_doc "$path"; then
+		english="$(english_sibling "$path")"
 
-	if [[ "$path" =~ (^|/)README_[A-Za-z0-9-]+\.md$ ]]; then
-		error \
-			"$path" \
-			"legacy README translation names are not allowed" \
-			"rename it to use README.<locale>.md, for example $(suggest_noncanonical_translation_name "$path")"
-	fi
-
-	if is_noncanonical_translation_name "$path"; then
-		error \
-			"$path" \
-			"translation files must use lowercase .<locale>.md suffixes and no underscore variants" \
-			"rename it to $(suggest_noncanonical_translation_name "$path")"
-	fi
-
-	if is_root_docs_language_bucket "$path"; then
-		error \
-			"$path" \
-			"language bucket directories under docs/ are not allowed" \
-			"move it to $(suggest_docs_language_bucket_target "$path")"
-	fi
-
-	if is_noncanonical_locale_bucket "$path"; then
-		error \
-			"$path" \
-			"translations must live beside the English source, not under locale-named subdirectories" \
-			"move it to $(suggest_nested_locale_bucket_target "$path")"
-	fi
-
-	if [[ "$path" =~ ^docs/[^/]+\.md$ && "$path" != "docs/README.md" ]]; then
-		error \
-			"$path" \
-			"top-level docs Markdown files must move into a typed docs/ subdirectory" \
-			"move it into one of docs/project/, docs/guides/, docs/reference/, docs/operations/, docs/security/, docs/architecture/, docs/channels/, docs/design/, or docs/migration/"
-	fi
-
-	if is_translation_file "$path"; then
-		locale="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-
-		if [[ "$path" == docs/design/* ]]; then
+		# docs/design/ holds two Chinese-only documents that never had an English
+		# source: hook-system-design.zh.md and
+		# issue-783-investigation-and-fix-plan.zh.md. They await a translate-or-remove
+		# decision and must not be deleted. Every other localized doc fails lint.
+		if [[ "$path" == docs/design/* && ! -f "$english" ]]; then
 			continue
 		fi
 
-		base="$(translation_base "$path" "$locale")"
-		if [[ ! -f "$base" ]]; then
-			error \
-				"$path" \
-				"missing English source document '$base'" \
-				"add the English source document at '$base' or move this translation beside the correct English source"
-		fi
+		error \
+			"$path" \
+			"documentation is English-only; localized variants are not kept" \
+			"delete this file and keep only '${english}'"
+	fi
+
+	if is_locale_directory "$path"; then
+		error \
+			"$path" \
+			"documentation is English-only; language bucket directories are not allowed" \
+			"move the file to its typed English directory, for example docs/guides/"
+	fi
+
+	# docs/AGENTS.md is a required DOX file, so exempt the DOX filename by
+	# basename instead of moving it into a typed subdirectory.
+	if [[ "$path" =~ ^docs/[^/]+\.md$ && "$path" != "docs/README.md" && "$(basename "$path")" != "AGENTS.md" ]]; then
+		error \
+			"$path" \
+			"top-level docs Markdown files must move into a typed docs/ subdirectory" \
+			"move it into one of docs/guides/, docs/reference/, docs/operations/, docs/security/, docs/architecture/, docs/channels/, docs/design/, or docs/migration/"
 	fi
 done < <(git ls-files --cached --others --exclude-standard -- '*.md')
 

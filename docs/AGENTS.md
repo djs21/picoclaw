@@ -2,17 +2,22 @@
 
 ## Purpose
 Project documentation: `architecture`, `channels`, `design`, `guides`,
-`migration`, `operations`, `project`, `reference`, `security`, with multi-language
-variants (`.fr`, `.ja`, `.zh`, `.pt-br`, `.vi`, `.ms`, `.id`, `.it`, `.ko`).
+`migration`, `operations`, `project`, `reference`, `security`.
 
 ## Ownership
 `docs/` and all `*.md` files beneath it. Root AGENTS.md references `docs/` for
 cross-cutting changes (e.g. tool removal).
 
 ## Local Contracts
-- Translations live beside their English source as `<name>.<locale>.md` (enforced
-  by `scripts/lint-docs.sh`); no locale-named subdirectories under `docs/`;
-  translated project entry docs go under `docs/project/`.
+- Documentation is English-only: one canonical English file per document. Do not
+  add localized variants (`<name>.<locale>.md`, `<name>_<locale>.md`) or
+  locale-named subdirectories under `docs/`; `scripts/lint-docs.sh` rejects both.
+- `docs/design/` holds two Chinese-only documents with no English source
+  (`hook-system-design.zh.md`, `issue-783-investigation-and-fix-plan.zh.md`);
+  they await a translate-or-remove decision. Every other localized doc fails
+  lint.
+- Directory type comes first: `docs/<type>/<name>.md`. Only `docs/README.md` and
+  the DOX `docs/AGENTS.md` may sit directly under `docs/`.
 
 ## Work Guidance
 

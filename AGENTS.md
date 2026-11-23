@@ -62,8 +62,8 @@ This repository uses sbeads for lightweight, dependency-aware local issue tracki
 - Verify with real commands before claiming done. Report the command and its
   result rather than assumptions; a grep that finds nothing is evidence, an
   unrun grep is not.
-- Keep replies in Indonesian for this repository's own sessions, and keep
-  documentation in English unless the file is an existing localized variant.
+- Keep replies in Indonesian for this repository's own sessions. Documentation is
+  English-only: one canonical file per document, no localized variants.
 
 ---
 
@@ -153,7 +153,7 @@ Direct child AGENTS.md files:
 - `cmd/AGENTS.md` — Go entry points: `picoclaw` binary and `membench` benchmark.
 - `pkg/AGENTS.md` — Go library packages under `pkg/`.
 - `web/AGENTS.md` — Dashboard backend (`web/backend`) and frontend (`web/frontend`).
-- `docs/AGENTS.md` — Project documentation (multi-language).
+- `docs/AGENTS.md` — Project documentation (English-only).
 - `workspace/AGENTS.md` — Embedded builtin skills, prompts, and workspace templates.
 - `scripts/AGENTS.md` — Repo tooling scripts (build, lint, integration tests).
 

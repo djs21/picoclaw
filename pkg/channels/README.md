@@ -45,8 +45,6 @@ pkg/channels/
 ├── base.go              # BaseChannel shared abstraction layer
 ├── interfaces.go        # Optional capability interfaces (TypingCapable, MessageEditor, ReactionCapable, PlaceholderCapable, PlaceholderRecorder)
 ├── README.md            # English documentation
-├── README.zh.md         # Chinese documentation
-├── media.go             # MediaSender optional interface
 ├── webhook.go           # WebhookHandler, HealthChecker optional interfaces
 ├── errors.go            # Sentinel errors (ErrNotRunning, ErrRateLimit, ErrTemporary, ErrSendFailed)
 ├── errutil.go           # Error classification helpers

@@ -10,7 +10,9 @@ Repo tooling scripts: `build-macos-app.sh`, `lint-docs.sh`,
 
 ## Local Contracts
 - `run-integration-tests.sh` drives integration suites under `integration/`.
-- `lint-docs.sh` enforces documentation translation/file naming rules.
+- `lint-docs.sh` enforces the documentation layout: English-only filenames
+  repo-wide, no locale directories under `docs/`, typed directories, and only
+  `docs/README.md` plus the DOX `docs/AGENTS.md` directly under `docs/`.
 
 ## Work Guidance
 
