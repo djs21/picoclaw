@@ -1500,13 +1500,15 @@ func TestLoadConfig_LoadImageCanBeDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultConfig_MessageMediaDisabled(t *testing.T) {
+func TestDefaultConfig_MessageMediaEnabled(t *testing.T) {
 	cfg := DefaultConfig()
 	if !cfg.Tools.Message.Enabled {
 		t.Fatal("DefaultConfig().Tools.Message.Enabled should be true")
 	}
-	if cfg.Tools.Message.MediaEnabled {
-		t.Fatal("DefaultConfig().Tools.Message.MediaEnabled should be false")
+	// Local media delivery is on by default so agents can send files out of the
+	// box; users opt out with tools.message.media_enabled = false.
+	if !cfg.Tools.Message.MediaEnabled {
+		t.Fatal("DefaultConfig().Tools.Message.MediaEnabled should be true")
 	}
 }
 

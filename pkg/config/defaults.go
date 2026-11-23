@@ -417,7 +417,7 @@ func DefaultConfig() *Config {
 				ToolConfig: ToolConfig{
 					Enabled: true,
 				},
-				MediaEnabled: false,
+				MediaEnabled: true,
 			},
 			ReadFile: ReadFileToolConfig{
 				Enabled:         true,

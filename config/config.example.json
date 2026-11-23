@@ -411,7 +411,8 @@
       "enabled": true
     },
     "message": {
-      "enabled": true
+      "enabled": true,
+      "media_enabled": true
     },
     "read_file": {
       "enabled": true,
