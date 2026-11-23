@@ -19,6 +19,9 @@ PicoClaw's tools configuration is located in the `tools` field of `config.json`.
     "cron": {
       ...
     },
+    "message": {
+      ...
+    },
     "skills": {
       ...
     }
@@ -204,6 +207,32 @@ as containers, VMs, or an approval flow around build-and-run commands.
 }
 ```
 
+## Message Tool
+
+`message` sends text, media, and files to the current chat channel. It is the only outbound file-delivery path; the former `send_file` tool was consolidated into it through the `file_path` parameter.
+
+| Config | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Registers the `message` tool |
+| `media_enabled` | bool | `true` | Adds the `file_path` and `media` parameters so the tool can send local files |
+
+`media_enabled` defaults to `true`. When it is `false`, the schema only accepts text: `file_path` and `media` are absent, the tool description degrades to text-only, and argument validation rejects those keys with `unexpected property "file_path"`. Models then report that no file-sending tool exists. To opt out:
+
+```json
+{
+  "tools": {
+    "message": {
+      "enabled": true,
+      "media_enabled": false
+    }
+  }
+}
+```
+
+Enabling this by default means any file the agent can read is a file it can send to a connected channel; keep `agents.defaults.restrict_to_workspace` on and review `tools.allow_read_paths` before widening read access.
+
+Paths are resolved from the agent workspace and must satisfy `tools.allow_read_paths` when `agents.defaults.restrict_to_workspace` is enabled. Files larger than `agents.defaults.max_media_size` (default 20 MB) are rejected. Vector SVG is sent as a document unless an explicit `media[].type` overrides it, because photo endpoints reject it. There is no environment variable for `media_enabled`; edit `config.json` directly.
+
 ## Lazy Tool Loading
 
 Lazy loading keeps the LLM context small when many tools are registered. Only **core tools** are exposed up front. Every other tool is registered as hidden (deferred) and must be discovered on demand.
@@ -229,6 +258,8 @@ When `lazy_loading.enabled=true`, these tools are always active (core) regardles
 They are wired in `pkg/agent/instance.go` via `tools.NewLoadTool` and `tools.NewRegexSearchTool`, and `LazyLoadingConfig.IsCoreTool` in `pkg/config/config.go` treats them as core so `RegisterTool` / `agent_init.go` never hide them.
 
 Per-agent allowlists (`SetAllowlist`) still apply to hidden tools, but discovery tools bypass the allowlist in `ToolRegistry.toolAllowedLocked` so deferred tools can always be unlocked.
+
+Include `message` in `core_tools` when agents must send files or media. A hidden `message` tool still appears in the manifest, but without its parameters, so the model cannot discover `file_path` and usually reports that file sending is unsupported.
 
 ### How it works
 

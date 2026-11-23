@@ -330,7 +330,7 @@ if __name__ == "__main__":
 ```
 
 LLM 看到内容后，可以自主决定：
-- 使用 `send_file` 工具发送给用户
+- 使用 `message` 工具的 `file_path` 参数发送给用户（`tools.message.media_enabled` 默认已启用）
 - 分析图片内容并回复用户
 - 其他处理方式
 
@@ -348,13 +348,13 @@ media://<store-id>
 
 ### 替代方案：使用现有工具
 
-如果插件生成文件，可以返回文件路径让 LLM 调用 `send_file` 等工具：
+如果插件生成文件，可以返回文件路径让 LLM 调用 `message` 工具的 `file_path` 参数：
 
 ```json
 {
   "action": "respond",
   "result": {
-    "for_llm": "图片已生成，保存在 /tmp/generated_image.png。使用 send_file 工具发送给用户。",
+    "for_llm": "图片已生成，保存在 /tmp/generated_image.png。使用 message 工具的 file_path 参数发送给用户。",
     "for_user": "",
     "silent": false
   }

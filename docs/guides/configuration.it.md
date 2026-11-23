@@ -142,7 +142,7 @@ Note:
 
 - È una allowlist reale, non un suggerimento per l'LLM.
 - I nomi dei tool fanno match 1:1 con il nome runtime del tool.
-- Se ti serve controllo preciso, usa i nomi runtime effettivi come `web_search`, `web_fetch`, `spawn`, `subagent`, `send_file`.
+- Se ti serve controllo preciso, usa i nomi runtime effettivi come `web_search`, `web_fetch`, `spawn`, `subagent`, `message`.
 - Le dichiarazioni dei tool in `AGENT.md` sono usate dal runtime e dai tool, ma non vengono iniettate nel prompt di discovery.
 
 ### Discovery Multi-Agent (Automatica)

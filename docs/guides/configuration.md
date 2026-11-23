@@ -333,7 +333,7 @@ Notes:
 
 - This is an allowlist, not a preference hint.
 - Tool names are matched against the runtime tool name 1:1.
-- Use runtime tool names such as `web_search`, `web_fetch`, `spawn`, `subagent`, `send_file`.
+- Use runtime tool names such as `web_search`, `web_fetch`, `spawn`, `subagent`, `message`.
 - Tool declarations in `AGENT.md` are used by runtime/tooling, but they are not injected into the discovery prompt.
 
 ### Agent Discovery (Automatic)
@@ -424,7 +424,36 @@ Even with `restrict_to_workspace: false`, the `exec` tool blocks these dangerous
 |------------|------|---------|-------------|
 | `tools.allow_read_paths` | string[] | `[]` | Additional paths allowed for reading outside workspace |
 | `tools.allow_write_paths` | string[] | `[]` | Additional paths allowed for writing outside workspace |
-| `tools.message.media_enabled` | bool | `false` | Allows the `message` tool to attach local media files by path. This is separate from `tools.send_file.enabled`; enable it only when unified text/media/caption delivery is intended. |
+| `tools.message.media_enabled` | bool | `true` | Adds the `file_path` and `media` parameters to the `message` tool so the agent can send local files. Set to `false` to disable file delivery — see [Sending Files and Media](#sending-files-and-media). |
+
+### Sending Files and Media
+
+The `message` tool is the only outbound file-delivery path (`send_file` was consolidated into it). File delivery is on by default; this is the opt-out:
+
+```json
+{
+  "tools": {
+    "message": {
+      "enabled": true,
+      "media_enabled": false
+    }
+  }
+}
+```
+
+`tools.message.enabled` must also be `true` (it is by default). `media_enabled` defaults to `true`. When it is `false`, the `file_path` and `media` parameters are not part of the tool schema, the tool description degrades to text-only, and the model reports that it has no way to send files. Passing `file_path` anyway is rejected during argument validation with `unexpected property "file_path"`.
+
+There is no environment variable for this setting; edit `config.json` directly. A restart is required unless `gateway.hot_reload` is enabled.
+
+Even with the setting enabled, a send can still fail when:
+
+- the path escapes the agent workspace while `agents.defaults.restrict_to_workspace` is `true` (the default) and the file is not matched by `tools.allow_read_paths`;
+- the file exceeds `agents.defaults.max_media_size` (default 20 MB);
+- the target channel cannot deliver the media type. Vector SVG is sent as a document unless the caller sets an explicit `media[].type`, because photo endpoints such as Telegram `SendPhoto` reject it.
+
+> **Lazy loading interaction**: when `tools.lazy_loading.enabled` is `true` and `message` is missing from `tools.lazy_loading.core_tools`, only a one-line manifest entry for `message` reaches the model — its parameters stay hidden, and the model tends to report that no file-sending tool exists. Add `message` to `core_tools` when agents must send files or media.
+
+> **Exposure note**: because file delivery is enabled by default, any file the agent can read is also a file it can send to a connected chat channel. Keep `agents.defaults.restrict_to_workspace` enabled and review `tools.allow_read_paths` before widening read access, or set `tools.message.media_enabled` to `false` on agents that must never send files.
 
 ### Read File Mode
 

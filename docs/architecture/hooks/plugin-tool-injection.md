@@ -330,7 +330,7 @@ When `response_handled=false`, media references are passed to the LLM, which can
 ```
 
 After seeing the content, the LLM can decide:
-- Use `send_file` tool to send to user
+- Use the `message` tool with `file_path` to send it to the user (`tools.message.media_enabled` is on by default)
 - Analyze image content and reply to user
 - Other processing approaches
 
@@ -348,13 +348,13 @@ These references are managed by PicoClaw's MediaStore and can be:
 
 ### Alternative: Use Existing Tools
 
-If the plugin generates files, you can return the file path and let the LLM call `send_file` or similar tools:
+If the plugin generates files, you can return the file path and let the LLM call the `message` tool with `file_path`:
 
 ```json
 {
   "action": "respond",
   "result": {
-    "for_llm": "Image generated, saved at /tmp/generated_image.png. Use send_file tool to send to user.",
+    "for_llm": "Image generated, saved at /tmp/generated_image.png. Use the message tool with file_path to send to user.",
     "for_user": "",
     "silent": false
   }
