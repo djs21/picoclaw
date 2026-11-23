@@ -88,7 +88,6 @@ func (t *EditFileTool) Execute(ctx context.Context, args map[string]any) *ToolRe
 	return DiffResult(path, beforeContent, afterContent)
 }
 
-
 // editOrCreateFile reads the file via sysFs, performs the replacement, or creates/overwrites the file.
 func editOrCreateFile(sysFs fileSystem, path, oldText, newText string, createIfMissing bool) ([]byte, []byte, bool, error) {
 	content, err := sysFs.ReadFile(path)

@@ -243,7 +243,6 @@ func TestEditTool_EditFile_MissingNewText(t *testing.T) {
 	}
 }
 
-
 // TestReplaceEditContent verifies the helper function replaceEditContent
 func TestReplaceEditContent(t *testing.T) {
 	tests := []struct {
@@ -292,7 +291,6 @@ func TestReplaceEditContent(t *testing.T) {
 		})
 	}
 }
-
 
 // TestEditFileTool_Restricted_InPlaceEdit verifies that EditFileTool in restricted mode
 // correctly edits a file using the single-open editFileInRoot path.
@@ -387,4 +385,3 @@ func TestEditFileTool_OverwriteWholeFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Replaced entire content", string(data))
 }
-

@@ -1190,4 +1190,3 @@ func TestToolUseSystemPromptRule_ContainsAntiLeakConstraints(t *testing.T) {
 		}
 	}
 }
-

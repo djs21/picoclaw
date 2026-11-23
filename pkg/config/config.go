@@ -945,12 +945,12 @@ type SearXNGConfig struct {
 }
 
 type WebToolsConfig struct {
-	ToolConfig  `                   yaml:"-"                      envPrefix:"PICOCLAW_TOOLS_WEB_"`
-	Brave       BraveConfig        `yaml:"brave,omitempty"                                        json:"brave"`
-	Tavily      TavilyConfig       `yaml:"tavily,omitempty"                                       json:"tavily"`
-			DuckDuckGo  DuckDuckGoConfig   `yaml:"-"                                                      json:"duckduckgo"`
-			SearXNG     SearXNGConfig      `yaml:"-"                                                      json:"searxng"`
-			Provider    string             `yaml:"-"                                                      json:"provider,omitempty" env:"PICOCLAW_TOOLS_WEB_PROVIDER"`
+	ToolConfig `                   yaml:"-"                      envPrefix:"PICOCLAW_TOOLS_WEB_"`
+	Brave      BraveConfig      `yaml:"brave,omitempty"                                        json:"brave"`
+	Tavily     TavilyConfig     `yaml:"tavily,omitempty"                                       json:"tavily"`
+	DuckDuckGo DuckDuckGoConfig `yaml:"-"                                                      json:"duckduckgo"`
+	SearXNG    SearXNGConfig    `yaml:"-"                                                      json:"searxng"`
+	Provider   string           `yaml:"-"                                                      json:"provider,omitempty" env:"PICOCLAW_TOOLS_WEB_PROVIDER"`
 	// PreferNative controls whether to use provider-native web search when
 	// the active LLM supports it (e.g. OpenAI web_search_preview). When true,
 	// the client-side web_search tool is hidden to avoid duplicate search surfaces,

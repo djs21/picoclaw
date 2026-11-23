@@ -2172,7 +2172,7 @@ func newMultiAgentLoop(t *testing.T, provider providers.LLMProvider) (*AgentLoop
 	cfg := &config.Config{
 		Tools: config.ToolsConfig{
 			Subagent: config.ToolConfig{Enabled: true},
-			Spawn:   config.ToolConfig{Enabled: true},
+			Spawn:    config.ToolConfig{Enabled: true},
 		},
 		Agents: config.AgentsConfig{
 			Defaults: config.AgentDefaults{

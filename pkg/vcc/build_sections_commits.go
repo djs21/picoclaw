@@ -118,4 +118,3 @@ func formatCommits(commits []string) []string {
 	}
 	return commits[len(commits)-limit:]
 }
-

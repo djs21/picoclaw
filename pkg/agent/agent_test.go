@@ -5455,7 +5455,6 @@ func TestAgentLoop_ToolLimitUsesDedicatedFallback(t *testing.T) {
 	}
 }
 
-
 func TestTargetReasoningChannelID_AllChannels(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "agent-test-*")
 	if err != nil {

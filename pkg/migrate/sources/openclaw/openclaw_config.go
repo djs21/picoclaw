@@ -753,7 +753,6 @@ type DuckDuckGoConfig struct {
 	MaxResults int  `json:"max_results"`
 }
 
-
 type CronConfig struct {
 	ExecTimeoutMinutes int `json:"exec_timeout_minutes"`
 }
@@ -1198,7 +1197,7 @@ func (c ToolsConfig) ToStandardTools() config.ToolsConfig {
 				Enabled:    c.Web.DuckDuckGo.Enabled,
 				MaxResults: c.Web.DuckDuckGo.MaxResults,
 			},
-			Proxy:      c.Web.Proxy,
+			Proxy: c.Web.Proxy,
 		},
 		Cron: config.CronToolsConfig{
 			ExecTimeoutMinutes: c.Cron.ExecTimeoutMinutes,

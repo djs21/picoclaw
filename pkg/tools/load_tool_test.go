@@ -13,7 +13,7 @@ type mockTestTool struct {
 	desc string
 }
 
-func (m *mockTestTool) Name() string { return m.name }
+func (m *mockTestTool) Name() string        { return m.name }
 func (m *mockTestTool) Description() string { return m.desc }
 func (m *mockTestTool) Parameters() map[string]any {
 	return map[string]any{

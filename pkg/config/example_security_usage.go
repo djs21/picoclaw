@@ -238,10 +238,8 @@ web:
 ```
 Use `api_keys` (plural) array format.
 
-
 ```yaml
 web:
-
 
 ```
 Use `api_key` (singular) single string format.
@@ -425,10 +423,10 @@ model_list:
 
 ```
 
-
 ```yaml
 web:
-  # Single key (not array)
+
+	# Single key (not array)
 
 ```
 

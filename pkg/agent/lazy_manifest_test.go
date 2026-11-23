@@ -14,7 +14,7 @@ type mockManifestTool struct {
 	desc string
 }
 
-func (m *mockManifestTool) Name() string { return m.name }
+func (m *mockManifestTool) Name() string        { return m.name }
 func (m *mockManifestTool) Description() string { return m.desc }
 func (m *mockManifestTool) Parameters() map[string]any {
 	return map[string]any{"type": "object"}

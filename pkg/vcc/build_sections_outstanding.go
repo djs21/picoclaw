@@ -63,4 +63,3 @@ func extractOutstandingContext(blocks []NormalizedBlock) []string {
 	}
 	return items
 }
-

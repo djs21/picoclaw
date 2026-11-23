@@ -190,7 +190,7 @@ func TestHandleListTools_ReportsWebSearchEnabledWhenToolIsOn(t *testing.T) {
 			}
 			cfg.Tools.Web.PreferNative = tt.preferNative
 			cfg.Tools.Web.Provider = "brave"
-					cfg.Tools.Web.DuckDuckGo.Enabled = false
+			cfg.Tools.Web.DuckDuckGo.Enabled = false
 			cfg.Tools.Web.Brave.Enabled = true
 			cfg.Tools.Web.Brave.SetAPIKeys(nil)
 			if err := config.SaveConfig(configPath, cfg); err != nil {

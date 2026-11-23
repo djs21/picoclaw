@@ -187,8 +187,6 @@ func TestAllSecurityKeysAccessible(t *testing.T) {
 		err = os.WriteFile(tavilyAPIKeyFile, []byte("tvly-tavily-from-file-11111"), 0o600)
 		require.NoError(t, err)
 
-
-
 		githubTokenFile := filepath.Join(tmpDir, "github_token.txt")
 		err = os.WriteFile(githubTokenFile, []byte("ghp-github-from-file-abc123"), 0o600)
 		require.NoError(t, err)
@@ -439,8 +437,6 @@ skills:
 
 		assert.Equal(t, "tvly-tavily-from-file-11111", cfg.Tools.Web.Tavily.APIKey())
 		t.Logf("Tavily APIKey(): %s", cfg.Tools.Web.Tavily.APIKey())
-
-
 
 		// Verify Skills tokens
 		assert.Equal(t, "ghp-github-from-file-abc123", cfg.Tools.Skills.Github.Token.String())

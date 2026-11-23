@@ -245,4 +245,3 @@ func longestCommonDirPrefix(paths []string) string {
 	}
 	return strings.Join(split[0][:i], "/") + "/"
 }
-

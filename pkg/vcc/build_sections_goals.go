@@ -172,4 +172,3 @@ func filterLenGT5(lines []string) []string {
 	}
 	return out
 }
-

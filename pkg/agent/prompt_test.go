@@ -266,7 +266,6 @@ func TestContextBuilder_CustomToolAllowListSuppressesReadFileSkillInstruction(t 
 	}
 }
 
-
 func TestContextBuilder_SuppressesAgentDiscoveryContributorWhenToolsUnavailable(t *testing.T) {
 	t.Setenv("PICOCLAW_BUILTIN_SKILLS", t.TempDir())
 	cb := NewContextBuilder(t.TempDir()).WithAgentDiscovery(

@@ -4,11 +4,11 @@ package vcc
 type BlockKind string
 
 const (
-	BlockKindUser      BlockKind = "user"
-	BlockKindAssistant BlockKind = "assistant"
-	BlockKindToolCall  BlockKind = "tool_call"
+	BlockKindUser       BlockKind = "user"
+	BlockKindAssistant  BlockKind = "assistant"
+	BlockKindToolCall   BlockKind = "tool_call"
 	BlockKindToolResult BlockKind = "tool_result"
-	BlockKindBash      BlockKind = "bash"
+	BlockKindBash       BlockKind = "bash"
 )
 
 // NormalizedBlock is the compiler's intermediate representation of a single
@@ -38,10 +38,10 @@ type SectionData struct {
 // Settings is the single runtime settings struct produced by config.ParseSettings
 // (decision D11, algo spec §4).
 type Settings struct {
-	OverrideDefaultCompaction       bool `json:"overrideDefaultCompaction"`
-	SmartKeepTail                   bool `json:"smartKeepTail"`
-	ContinueAfterThresholdCompact   bool     `json:"continueAfterThresholdCompact"`
-	ExcludeTools                    []string `json:"excludeTools,omitempty"`
+	OverrideDefaultCompaction     bool     `json:"overrideDefaultCompaction"`
+	SmartKeepTail                 bool     `json:"smartKeepTail"`
+	ContinueAfterThresholdCompact bool     `json:"continueAfterThresholdCompact"`
+	ExcludeTools                  []string `json:"excludeTools,omitempty"`
 }
 
 // FileOps records file activity observed during a session. It is the

@@ -108,7 +108,6 @@ func (c lazyToolManifestPromptContributor) ContributePrompt(
 	}, nil
 }
 
-
 type agentDiscoveryPromptContributor struct {
 	agentID  string
 	discover func(agentID string) []AgentDescriptor
@@ -156,7 +155,6 @@ func (c agentDiscoveryPromptContributor) ContributePrompt(
 	}, nil
 }
 
-
 func promptAllowsTool(req PromptBuildRequest, name string) bool {
 	if len(req.AllowedTools) == 0 {
 		return true
@@ -165,4 +163,3 @@ func promptAllowsTool(req PromptBuildRequest, name string) bool {
 	_, ok := allowed[strings.ToLower(strings.TrimSpace(name))]
 	return ok
 }
-
